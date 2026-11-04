@@ -111,7 +111,7 @@ AI OS supports multiple integration styles:
 
 - **JSON API:** use any programming language or framework; schema and examples are in [API docs](API.md) and [`openapi.yaml`](../openapi.yaml).
 - **MCP:** `POST /mcp` exposes tools for templates, eligible tasks, and proposed objectives.
-- **A2A discovery:** `/.well-known/agent-card.json` describes the service. The MVP's `/a2a` endpoint accepts a limited objective-proposal profile; it is not the full A2A lifecycle.
+- **A2A discovery:** `/.well-known/agent-card.json` describes the service using A2A 1.0 discovery fields. `/a2a` accepts JSON-RPC 2.0 `SendMessage` proposals and returns an input-required task for human approval. Task polling and the rest of the A2A lifecycle are not implemented yet.
 - **Extensions:** the [`extension interface`](../plugins/README.md) explains review metadata and the optional offline Docker runner.
 - **AI discovery:** [`llms.txt`](../llms.txt), robots directives, app metadata, and sitemap route help tools discover docs. Search engines cannot crawl localhost. Public indexing requires you to host the app at an HTTPS URL and set `AIOS_PUBLIC_URL`.
 
