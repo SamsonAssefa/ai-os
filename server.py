@@ -3,7 +3,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 import json, os, secrets, sqlite3, threading, uuid
 
-ROOT=os.path.dirname(__file__); DB=os.getenv("AIOS_DB_PATH",os.path.join(ROOT,"aios.sqlite3"))
+ROOT=os.path.dirname(__file__); DB=os.getenv("AIOS_DB_PATH",os.path.join(ROOT,"aios.sqlite3")); PUBLIC_URL=os.getenv("AIOS_PUBLIC_URL","").rstrip("/")
 ADMIN_TOKEN=os.getenv("AIOS_ADMIN_TOKEN",""); AGENT_TOKEN=os.getenv("AIOS_AGENT_TOKEN","")
 MAX_BUDGET=float(os.getenv("AIOS_MAX_BUDGET_USD","5.00")); LOCK=threading.RLock()
 CAPABILITIES=[
@@ -33,6 +33,8 @@ def role_for(headers):
 class Handler(BaseHTTPRequestHandler):
  def reply(self,status,data):
   raw=json.dumps(data).encode(); self.send_response(status); self.send_header("Content-Type","application/json"); self.send_header("Content-Length",str(len(raw))); self.send_header("Access-Control-Allow-Origin","*"); self.end_headers(); self.wfile.write(raw)
+ def reply_text(self,status,body,content_type):
+  raw=body.encode(); self.send_response(status); self.send_header("Content-Type",content_type); self.send_header("Content-Length",str(len(raw))); self.end_headers(); self.wfile.write(raw)
  def do_OPTIONS(self):
   self.send_response(204); self.send_header("Access-Control-Allow-Origin","*"); self.send_header("Access-Control-Allow-Headers","Authorization,Content-Type"); self.send_header("Access-Control-Allow-Methods","GET,POST,PATCH,OPTIONS"); self.end_headers()
  def body(self):
@@ -41,7 +43,24 @@ class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   path=urlparse(self.path).path
   if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.3.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
-  static={"/":"index.html","/docs/API.md":"docs/API.md","/plugins/README.md":"plugins/README.md","/docs/USER_GUIDE.md":"docs/USER_GUIDE.md"}
+  if path in ("/robots.txt","/llms.txt","/sitemap.xml","/.well-known/ai-plugin.json"):
+   if path=="/robots.txt":
+    body="User-agent: *\nAllow: /\nDisallow: /api/\n"
+    if PUBLIC_URL: body+=f"Sitemap: {PUBLIC_URL}/sitemap.xml\n"
+    return self.reply_text(200,body,"text/plain; charset=utf-8")
+   if path=="/llms.txt":
+    try:
+     with open(os.path.join(ROOT,"llms.txt"),encoding="utf-8") as f: return self.reply_text(200,f.read(),"text/plain; charset=utf-8")
+    except OSError: return self.reply(404,{"error":"not found"})
+   if path=="/sitemap.xml":
+    urls=[]
+    if PUBLIC_URL:
+     urls=[PUBLIC_URL+suffix for suffix in ("/","/docs/USER_GUIDE.md","/docs/API.md","/plugins/README.md","/openapi.yaml","/llms.txt")]
+    xml='<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f"<url><loc>{u}</loc></url>" for u in urls)+'</urlset>'
+    return self.reply_text(200,xml,"application/xml; charset=utf-8")
+   info={"schema_version":"v1","name_for_human":"AI OS","name_for_model":"ai_os","description_for_human":"Open-source workspace for connecting AI agents and coordinating human-approved tasks.","description_for_model":"Register agents, propose objectives, queue approved tasks, and report task results through the AI OS API. Read the user guide and API reference before integrating.","api":{"type":"openapi","url":(PUBLIC_URL+"/openapi.yaml") if PUBLIC_URL else "https://raw.githubusercontent.com/SamsonAssefa/ai-os/main/openapi.yaml","is_user_authenticated":True},"logo_url":"","contact_email":"","legal_info_url":"https://github.com/SamsonAssefa/ai-os/blob/main/LICENSE"}
+   return self.reply(200,info)
+  static={"/":"index.html","/docs/API.md":"docs/API.md","/plugins/README.md":"plugins/README.md","/docs/USER_GUIDE.md":"docs/USER_GUIDE.md","/docs/AI_DISCOVERY.md":"docs/AI_DISCOVERY.md","/llms.txt":"llms.txt","/openapi.yaml":"openapi.yaml"}
   if path in static:
    try:
     with open(os.path.join(ROOT,static[path]),"rb") as f: raw=f.read()
