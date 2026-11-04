@@ -179,7 +179,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn("requeued", [event["event"] for event in events])
 
     def test_health_reports_current_release(self):
-        self.assertEqual(json.load(self.request("/health"))["version"], "0.5.0")
+        self.assertEqual(json.load(self.request("/health"))["version"], "0.6.0")
 
     def test_workflow_templates_are_discoverable(self):
         templates = json.load(self.request("/workflow-templates"))

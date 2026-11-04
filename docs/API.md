@@ -57,6 +57,8 @@ All paths below are relative to `/api/v1` unless noted.
 
 ## Agent interoperability
 
+For application code, the [Python and JavaScript client quickstarts](../sdks/README.md) wrap identity, workflow discovery, task listing, claiming, and result reporting without extra dependencies.
+
 - `POST /mcp` accepts JSON-RPC MCP `initialize`, `tools/list`, and `tools/call`. Tools include workflow template discovery, eligible task listing, and objective proposal. A proposed objective still requires human approval.
 - `GET /.well-known/agent-card.json` publishes a discovery card.
 - `POST /a2a` accepts the MVP `message/send` objective-proposal profile. Requests create a `proposed` objective; this endpoint is not a complete implementation of all A2A task lifecycle features.

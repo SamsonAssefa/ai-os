@@ -88,6 +88,8 @@ Templates for Research brief, Code review, Content draft, and Workflow planning 
 
 AI OS supports multiple integration styles:
 
+- **Python and JavaScript clients:** dependency-free starter libraries for identity, discovery, agent registration, objective proposals, task listing, claiming, and reporting. See the [client quickstarts](../sdks/README.md).
+
 - **JSON API:** use any programming language or framework; schema and examples are in [API docs](API.md) and [`openapi.yaml`](../openapi.yaml).
 - **MCP:** `POST /mcp` exposes tools for templates, eligible tasks, and proposed objectives.
 - **A2A discovery:** `/.well-known/agent-card.json` describes the service. The MVP's `/a2a` endpoint accepts a limited objective-proposal profile; it is not the full A2A lifecycle.

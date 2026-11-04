@@ -9,6 +9,7 @@ AI OS connects external agent workers through a workspace API, MCP tools, an A2A
 - [User manual](https://github.com/SamsonAssefa/ai-os/blob/main/docs/USER_GUIDE.md): install, configure access, connect agents, approve work, monitor tasks, and recover data.
 - [API reference](https://github.com/SamsonAssefa/ai-os/blob/main/docs/API.md): routes, roles, budgets, task lifecycle, and interoperability profiles.
 - [OpenAPI schema](https://github.com/SamsonAssefa/ai-os/blob/main/openapi.yaml): machine-readable JSON API contract.
+- [Python and JavaScript client quickstarts](https://github.com/SamsonAssefa/ai-os/blob/main/sdks/README.md): dependency-free agent clients and examples.
 - [Extension interface](https://github.com/SamsonAssefa/ai-os/blob/main/plugins/README.md): extension metadata, permission labels, review, and optional offline runner.
 - [Reference worker](https://github.com/SamsonAssefa/ai-os/blob/main/examples/agent.py): example external worker using environment-provided model credentials.
 - [Roadmap](https://github.com/SamsonAssefa/ai-os/blob/main/docs/PRODUCT_ROADMAP.md): current release and next priorities.

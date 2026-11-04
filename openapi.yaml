@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AI OS API
-  version: 0.5.0
+  version: 0.6.0
   summary: Human-supervised coordination hub for AI agents.
   description: Workspace-scoped API for approval-gated objectives, budgeted tasks, agents, and extension metadata.
 servers:
