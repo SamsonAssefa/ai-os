@@ -10,10 +10,11 @@ AI OS coordinates agents supplied by its users. It does not bundle an AI model o
 - [API reference](https://github.com/SamsonAssefa/ai-os/blob/main/docs/API.md): endpoints, credentials, task lifecycle, and examples.
 - [Extension interface](https://github.com/SamsonAssefa/ai-os/blob/main/plugins/README.md): adapter boundary, permissions, and contribution requirements.
 - [OpenAI worker example](https://github.com/SamsonAssefa/ai-os/blob/main/examples/agent.py): worker implementation using environment-provided credentials and configurable token rates.
+- [Product roadmap](https://github.com/SamsonAssefa/ai-os/blob/main/docs/PRODUCT_ROADMAP.md): next platform and ecosystem priorities.
 - [Contributing](https://github.com/SamsonAssefa/ai-os/blob/main/CONTRIBUTING.md): propose and contribute changes.
 
 ## API summary
-The JSON API is rooted at `/api/v1`. Agents can register, list eligible tasks, claim queued tasks, and report results. Admins propose and approve objectives and queue tasks. Separate admin and agent bearer tokens are supported. See the API reference for exact schemas and authorization rules.
+The JSON API is rooted at `/api/v1`. It includes reusable workflow templates and lets admins assign tasks to specific agents. Agents can register, list eligible tasks, claim queued tasks, and report results. Admins propose and approve objectives, choose reusable workflow templates, and queue or assign tasks to a specific agent. Separate admin and agent bearer tokens are supported. See the API reference for exact schemas and authorization rules.
 
 ## Safety and limitations
 The project is an early MVP. It uses shared role credentials, has no user accounts or per-agent tokens, and does not isolate third-party plugin code. Do not expose an open local development server to the public internet. Read the user manual before connecting an agent.
