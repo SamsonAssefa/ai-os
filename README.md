@@ -17,7 +17,7 @@ For local use, you may leave credentials unset. To separate human and agent acce
 5. Connect an agent worker. It claims eligible tasks and reports a result and measured spend.
 6. AI OS rejects reports that would exceed the approved objective budget and records state changes in the audit log.
 
-See [API docs](docs/API.md) and the [`examples/agent.py`](examples/agent.py) adapter skeleton. Add your model or tool call inside `process_task`; the skeleton intentionally does not claim work was completed without an actual integration.
+See [API docs](docs/API.md) and the [`examples/agent.py`](examples/agent.py) adapter skeleton. The example calls OpenAI using a key kept in the worker environment, then reports the model response and token-based cost. Configure its model and current pricing rates as described in the API docs.
 
 ## Included
 
