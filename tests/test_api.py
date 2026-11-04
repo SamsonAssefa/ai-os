@@ -139,10 +139,24 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(json.loads(mcp_result["result"]["content"][0]["text"])["status"], "proposed")
         a2a = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/a2a",
-            data=json.dumps({"id": "req-1", "method": "message/send", "params": {"message": {"parts": [{"type": "text", "text": "A2A proposal"}]}, "budget_usd": 1}}).encode(),
+            data=json.dumps({"jsonrpc": "2.0", "id": "req-1", "method": "SendMessage", "params": {"message": {"messageId": "client-msg", "role": "ROLE_USER", "parts": [{"text": "A2A proposal"}]}, "budget_usd": 1}}).encode(),
             headers={"Content-Type": "application/json"}, method="POST")
         a2a_result = json.load(urllib.request.urlopen(a2a, timeout=3))
-        self.assertEqual(a2a_result["result"]["status"]["state"], "input-required")
+        self.assertEqual(a2a_result["jsonrpc"], "2.0")
+        self.assertEqual(a2a_result["id"], "req-1")
+        task = a2a_result["result"]["task"]
+        self.assertEqual(task["status"]["state"], "TASK_STATE_INPUT_REQUIRED")
+        self.assertTrue(task["metadata"]["approvalRequired"])
+        self.assertEqual(json.load(self.request("/objectives"))[0]["status"], "proposed")
+
+    def test_a2a_agent_card_and_jsonrpc_validation(self):
+        card = json.load(urllib.request.urlopen(f"http://127.0.0.1:{self.port}/.well-known/agent-card.json", timeout=3))
+        self.assertEqual(card["protocolVersion"], "1.0")
+        self.assertEqual(card["supportedInterfaces"][0]["protocolBinding"], "JSONRPC")
+        bad = urllib.request.Request(f"http://127.0.0.1:{self.port}/a2a", data=json.dumps({"id": 1, "method": "SendMessage", "params": {}}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+        response = urllib.request.urlopen(bad, timeout=3)
+        result = json.load(response)
+        self.assertEqual(result["error"]["code"], -32600)
 
     def test_current_mcp_protocol_discovers_and_lists_tools_statelessly(self):
         def call(method, params=None, extra_headers=None):
