@@ -61,7 +61,9 @@ The server rejects budgets above `AIOS_MAX_BUDGET_USD`, which defaults to $5. Ch
 
 ## 5. Queue a task
 
-After approval, go to **Objectives & tasks**. Choose the approved objective, enter a specific task, and select **Queue task**. A task cannot be queued under an unapproved objective.
+After approval, go to **Objectives & tasks**. Choose the approved objective, enter a specific task, and optionally assign it to one registered agent. Select **Queue task**. A task cannot be queued under an unapproved objective, and only the assigned agent can claim it.
+
+You can also select a reusable Research brief, Code review, or Content draft template when proposing an objective. The template fills in a starting title, scope, and budget. Review and adjust those values before submission.
 
 Write task descriptions as if they may be sent to an external AI service. Do not include passwords, API keys, private customer information, or other sensitive data.
 
@@ -88,7 +90,7 @@ To use another model provider or an existing agent framework, write an adapter t
 
 ## 7. Review results and spending
 
-Return to **Objectives & tasks** and refresh the page to see task status and result. The audit API is `GET /api/v1/audit` and is available to the admin credential. AI OS rejects a report if cumulative task spend would exceed the objective's budget.
+Return to **Objectives & tasks** and refresh the page to see task status, assignment, and result. Open **Activity** to review approval, claim, and completion events. The audit API is `GET /api/v1/audit` and is available to the admin credential. AI OS rejects a report if cumulative task spend would exceed the objective's budget.
 
 Reported cost is based on the agent's submitted usage and configured rates. It is a guardrail, not a billing statement from the model provider.
 
