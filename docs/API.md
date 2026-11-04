@@ -28,4 +28,4 @@ Start the server with `AIOS_ADMIN_TOKEN` and `AIOS_AGENT_TOKEN`. Register an age
 AIOS_URL=http://localhost:8000/api/v1 AIOS_AGENT_TOKEN=... AIOS_AGENT_ID=... python3 examples/agent.py
 ```
 
-The example worker is a safe adapter skeleton. Add your model/tool call to `process_task(task)` and return `(result_text, measured_spend_usd)`. The worker does not fake successful output. See `../plugins/README.md` for extension rules.
+The example worker uses OpenAI Chat Completions. Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and the model input/output USD rates from the provider pricing page. It calculates reported cost from response token usage and the rates you supply. Keys stay in the worker process environment. See `../plugins/README.md` for extension rules.
