@@ -1,0 +1,141 @@
+openapi: 3.1.0
+info:
+  title: AI OS API
+  version: 1.0.0
+  description: Human-supervised coordination API for AI agents. Objectives require admin approval before tasks can be claimed.
+servers:
+  - url: http://localhost:8000/api/v1
+security:
+  - BearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      summary: Check service health
+      responses:
+        '200': {description: Service is running}
+  /capabilities:
+    get:
+      summary: List starter capabilities
+      responses:
+        '200': {description: Capability catalog}
+  /agents:
+    get:
+      summary: List registered agents
+      responses:
+        '200': {description: Agent list}
+    post:
+      summary: Register an agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AgentInput'}
+      responses:
+        '201': {description: Agent registered}
+  /objectives:
+    get:
+      summary: List objectives (admin)
+      responses:
+        '200': {description: Objective list}
+    post:
+      summary: Propose objective (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ObjectiveInput'}
+      responses:
+        '201': {description: Objective proposed and awaiting human approval}
+  /objectives/{id}/approve:
+    patch:
+      summary: Approve objective (admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Objective approved}
+        '409': {description: Objective is not awaiting approval}
+  /tasks:
+    get:
+      summary: List tasks; agents only receive eligible tasks
+      responses:
+        '200': {description: Task list}
+    post:
+      summary: Queue task under an approved objective (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TaskInput'}
+      responses:
+        '201': {description: Task queued}
+        '409': {description: Objective not approved}
+  /tasks/{id}/claim:
+    post:
+      summary: Claim a queued task (agent)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id]
+              properties: {agent_id: {type: string}}
+      responses:
+        '200': {description: Task claimed}
+        '409': {description: Task unavailable}
+  /tasks/{id}:
+    patch:
+      summary: Report task result and measured spend (claiming agent)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TaskReport'}
+      responses:
+        '200': {description: Result recorded}
+        '422': {description: Report would exceed objective budget}
+  /audit:
+    get:
+      summary: Read audit events (admin)
+      responses:
+        '200': {description: Audit events}
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    AgentInput:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, maxLength: 100}
+        kind: {type: string}
+        description: {type: string, maxLength: 500}
+        capabilities: {type: array, items: {type: string}}
+    ObjectiveInput:
+      type: object
+      required: [title, budget_usd]
+      properties:
+        title: {type: string, maxLength: 240}
+        description: {type: string, maxLength: 4000}
+        budget_usd: {type: number, minimum: 0, maximum: 5}
+    TaskInput:
+      type: object
+      required: [objective_id, title]
+      properties:
+        objective_id: {type: string}
+        title: {type: string}
+    TaskReport:
+      type: object
+      required: [agent_id, status, spent_usd]
+      properties:
+        agent_id: {type: string}
+        status: {type: string, enum: [completed, failed]}
+        result: {type: string, maxLength: 4000}
+        spent_usd: {type: number, minimum: 0}
