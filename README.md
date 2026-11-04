@@ -26,7 +26,7 @@ Open [http://localhost:8000](http://localhost:8000). Local development mode is i
 - Guided, secret-free model setup with a live configuration status, copyable server instructions, and an integration directory for supported agent and extension interfaces.
 - Workspace-scoped API keys with owner, admin, member, viewer, and agent roles. Agent keys can be bound to a registered agent and are shown only once. The UI displays workspace usage and offers role-aware task controls.
 - Approval-gated objectives, task assignment, spending reservations, budget enforcement, deadlines, dependencies, retries, cancellation requests, and task event history.
-- Human-readable API docs and OpenAPI 3.1 schema; stateless MCP `2026-07-28` discovery/tool calls with legacy `2025-11-25` compatibility, plus an A2A agent card and limited objective-proposal profile.
+- Human-readable API docs and OpenAPI 3.1 schema; stateless MCP `2026-07-28` discovery/tool calls with legacy `2025-11-25` compatibility, plus A2A 1.0 discovery and a limited approval-gated JSON-RPC proposal profile.
 - Dependency-free Python and JavaScript client libraries for connecting agents and completing the task lifecycle.
 - Provider-neutral worker example for OpenAI-compatible model APIs; remote credentials travel only over HTTPS and local HTTP is restricted to loopback endpoints.
 - Extension metadata catalog with human review and an optional, disabled-by-default Docker runner. The runner is offline, read-only, digest-pinned, resource-limited, and receives no host credentials or mounts.
