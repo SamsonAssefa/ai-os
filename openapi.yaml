@@ -19,6 +19,16 @@ paths:
       summary: List starter capabilities
       responses:
         '200': {description: Capability catalog}
+  /workflow-templates:
+    get:
+      summary: List reusable objective templates
+      responses:
+        '200': {description: Workflow template list}
+  /workflow-templates:
+    get:
+      summary: List reusable objective templates
+      responses:
+        '200': {description: Template list}
   /agents:
     get:
       summary: List registered agents
@@ -58,6 +68,8 @@ paths:
   /tasks:
     get:
       summary: List tasks; agents only receive eligible tasks
+      parameters:
+        - {name: agent_id, in: query, required: false, schema: {type: string}, description: Filters to tasks assigned to this agent plus unassigned tasks}
       responses:
         '200': {description: Task list}
     post:
@@ -131,6 +143,7 @@ components:
       properties:
         objective_id: {type: string}
         title: {type: string}
+        assigned_agent_id: {type: [string, 'null']}
     TaskReport:
       type: object
       required: [agent_id, status, spent_usd]
