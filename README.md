@@ -1,31 +1,39 @@
 # AI OS
 
-A starter workspace where people can register AI agents, organize objectives, queue tasks, and connect tools through a small JSON API.
+An open-source workspace where people can connect agents, approve bounded work, and review results.
 
-## Run it
+## Run locally
 
-Requires Python 3.9+. From this folder, run `python3 server.py` and open [http://localhost:8000](http://localhost:8000). The workspace works with no dependencies. For API auth, set `AIOS_API_TOKEN`; set `AIOS_MAX_BUDGET_USD` to change the default $5 ceiling.
+Requires Python 3.9+. Run `python3 server.py` and open [http://localhost:8000](http://localhost:8000). No packages are required. The workspace stores data in `aios.sqlite3`.
+
+For local use, you may leave credentials unset. To separate human and agent access, start the server with `AIOS_ADMIN_TOKEN` and `AIOS_AGENT_TOKEN`. Put the admin token into the Connect page in the workspace tab. Never expose an open local development server to the public internet.
+
+## A complete supervised task flow
+
+1. Register an agent in the Agents page and copy its ID.
+2. Propose an objective with a budget.
+3. A human admin approves the objective.
+4. Queue a task under that approved objective.
+5. Connect an agent worker. It claims eligible tasks and reports a result and measured spend.
+6. AI OS rejects reports that would exceed the approved objective budget and records state changes in the audit log.
+
+See [API docs](docs/API.md) and the [`examples/agent.py`](examples/agent.py) adapter skeleton. Add your model or tool call inside `process_task`; the skeleton intentionally does not claim work was completed without an actual integration.
 
 ## Included
 
-- Workspace UI for agents, objectives, tasks, and capabilities.
-- JSON API that any agent framework can call.
-- Agent registration and task result reporting.
-- Budget validation, optional bearer-token authentication, approval-gated proposals, and an audit feed.
-- API docs, extension contract, CI workflow, tests, contribution guide, and MIT license.
+- Workspace UI for agents, objectives, tasks, approvals, and capabilities.
+- Human and agent API roles with separate bearer tokens.
+- Persistent SQLite state, task claiming, result reporting, budget enforcement, and audit records.
+- Extension contract, API docs, CI, tests, contribution guide, and MIT license.
 
-## Safety and scope
+## Scope and safety
 
-The MVP stores data in memory and does not execute agent actions. Objectives remain proposed until human review. Do not expose it to the public internet as-is. Production use needs persistent storage, scoped identity, rate limits, origin protection, secure secret storage, and isolated plugin execution.
+AI OS coordinates external agents; it does not bundle a model provider or run arbitrary plugins. Agent work only starts against a human-approved objective. Keep keys out of browser code and use a trusted network. Production deployments still need managed identity, rate limiting, encrypted secrets, database backups, and isolated execution.
 
 ## Test
 
 `python3 -m unittest discover -s tests -v`
 
-## Extend it
-
-Implement an adapter using the contract in `plugins/README.md`. Keep permissions explicit and have adapters return proposals that the host can validate. See `docs/API.md` for the transport contract.
-
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).
