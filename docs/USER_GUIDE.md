@@ -120,3 +120,7 @@ See [API docs](API.md) for request bodies and responses.
 ## Current limitations
 
 AI OS is an early MVP. It uses one shared admin token and one shared agent token, does not provide sign-in accounts, and does not isolate plugins. Keep it on a trusted network. Public or team hosting needs stronger identity and permission controls, rate limits, protected secret storage, backups, and security review.
+
+## Findability and AI integrations
+
+The repository includes a crawler-readable `llms.txt`, `robots.txt`, SoftwareApplication metadata, a generated sitemap route, and an OpenAPI schema. Public crawlers cannot index a localhost server. To make the web workspace discoverable, deploy it on a public HTTPS domain and set `AIOS_PUBLIC_URL` to that origin. Read [AI and search discovery](AI_DISCOVERY.md).
