@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AI OS API
-  version: 0.4.0
+  version: 0.5.0
   summary: Human-supervised coordination hub for AI agents.
   description: Workspace-scoped API for approval-gated objectives, budgeted tasks, agents, and extension metadata.
 servers:
@@ -15,6 +15,11 @@ paths:
       summary: Service health
       responses:
         '200': {description: Service is running}
+  /me:
+    get:
+      summary: Identify the current scoped credential and its UI permissions
+      responses:
+        '200': {description: Role and workspace metadata; no secret values}
   /capabilities:
     get:
       summary: List capabilities
@@ -190,7 +195,7 @@ paths:
     get:
       summary: Workspace task and budget metrics
       responses:
-        '200': {description: Metrics}
+        '200': {description: Metrics including the configured per-objective budget ceiling}
   /export:
     get:
       summary: Export workspace records

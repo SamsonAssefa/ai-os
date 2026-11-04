@@ -35,6 +35,7 @@ All paths below are relative to `/api/v1` unless noted.
 | Method and path | Permission | Purpose |
 |---|---|---|
 | `GET /health` | Public | Liveness and version |
+| `GET /me` | Authenticated | Credential role, workspace, and available UI controls (no secret values) |
 | `GET /capabilities`, `GET /workflow-templates` | Authenticated | Discover built-in workflow capabilities |
 | `GET/POST /workspaces` | Admin / owner | List accessible workspaces or create one (new owner key shown once) |
 | `GET/POST /api-keys`, `DELETE /api-keys/{id}` | Admin / owner | Create/list/revoke scoped keys (raw key shown once on creation) |
@@ -46,7 +47,7 @@ All paths below are relative to `/api/v1` unless noted.
 | `POST /tasks/{id}/claim` | Agent | Atomically claim available eligible work |
 | `PATCH /tasks/{id}` | Agent that claimed it | Report completion, failure, or requested cancellation |
 | `PATCH /tasks/{id}/cancel`, `PATCH /tasks/{id}/retry` | Owner / admin | Cancel or retry eligible work |
-| `GET /audit`, `GET /metrics` | Viewer+ for audit; owner/admin for metrics | Review activity and workspace totals |
+| `GET /audit`, `GET /metrics` | Viewer+ for audit; owner/admin for metrics | Review activity and workspace totals, including spent and reserved amounts |
 | `GET/POST /export`, `POST /import` | Owner / admin | Export workspace data; import into an empty workspace with proposals reset for review and new record IDs |
 | `GET/POST /backups` | Bootstrap admin only | List/create full-database snapshots |
 | `GET/POST /plugins` | Authenticated read; owner/admin submit | Browse approved extensions or submit metadata for review |

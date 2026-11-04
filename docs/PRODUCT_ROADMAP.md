@@ -2,9 +2,9 @@
 
 AI OS is an open, self-hosted workspace for coordinating AI agents with people in control of scope and consequential actions. The goal is to make connections, permissions, and work portable across providers and frameworks.
 
-## Available in v0.4.0
+## Available in v0.5.0
 
-- Browser workspace with a black-and-white default, appearance customization, objective/task views, activity, team workspaces, scoped access keys, and extension metadata catalog.
+- Browser workspace with a black-and-white default, appearance customization, objective/task views, activity, team workspaces, scoped access keys, extension metadata catalog, live operations metrics, task reservations/dependencies/deadlines, and owner recovery controls.
 - JSON API, OpenAPI reference, MCP tool profile, A2A agent discovery card, and a limited A2A objective-proposal profile.
 - Human-approved objectives; task dependencies, deadlines, reservations, spend checks, retries, cancellation requests, event history, and per-agent assignment.
 - Workspace export/import and bootstrap-admin full database snapshots.

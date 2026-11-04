@@ -19,7 +19,7 @@ Open [http://localhost:8000](http://localhost:8000). Local development mode is i
 ## What is included
 
 - Black-and-white, customizable browser workspace for agents, objectives, task queues, activity, and appearance preferences.
-- Workspace-scoped API keys with owner, admin, member, viewer, and agent roles. Agent keys can be bound to a registered agent and are shown only once.
+- Workspace-scoped API keys with owner, admin, member, viewer, and agent roles. Agent keys can be bound to a registered agent and are shown only once. The UI displays workspace usage and offers role-aware task controls.
 - Approval-gated objectives, task assignment, spending reservations, budget enforcement, deadlines, dependencies, retries, cancellation requests, and task event history.
 - Human-readable API docs and OpenAPI 3.1 schema; MCP tool endpoint and A2A agent card / objective proposal profile.
 - Extension metadata catalog with human review and an optional, disabled-by-default Docker runner. The runner is offline, read-only, digest-pinned, resource-limited, and receives no host credentials or mounts.

@@ -67,7 +67,7 @@ Use current model pricing from your provider. The example calculates a cost esti
 
 1. From **Workspace**, propose an objective. Include the intended result, relevant context, and a maximum budget.
 2. Open **Objectives & tasks** and approve the proposal after reviewing its scope and budget.
-3. Create specific tasks under the approved objective. Assign an agent if only one worker should be able to claim it. You may set a per-task spending reservation, attempt limit, deadline, and dependencies through the API.
+3. Create specific tasks under the approved objective. Assign an agent if only one worker should be able to claim it. In **Objectives & tasks**, set an optional spending reservation, retry limit, deadline, and dependencies on earlier tasks. A reservation of `0` asks AI OS to reserve the remaining available objective budget. Owners can cancel or retry eligible tasks and inspect their event history in the task list.
 4. Workers only see queued tasks whose objective is approved, dependencies are complete, and assignment permits the worker.
 
 The default maximum objective budget is `$5.00`; configure `AIOS_MAX_BUDGET_USD` before starting the service to change the cap. A task claim reserves funds from the objective's remaining budget. When the worker reports, AI OS rejects spend above that reservation. A failed task can be retried by an owner if attempts remain. Cancelling queued work stops it immediately; cancelling running work records a cancellation request that the worker must honor.
@@ -76,7 +76,7 @@ Templates for Research brief, Code review, Content draft, and Workflow planning 
 
 ## 5. Monitor and recover
 
-- **Workspace** shows counts and recent work.
+- **Workspace** shows counts, total spend and reservations, and queue status for owners. `GET /api/v1/me` reports the current credential role and workspace without returning secrets.
 - **Objectives & tasks** shows approval state, assignment, result, and spend.
 - **Activity** shows the workspace audit history.
 - `GET /api/v1/tasks/{id}/events` shows task lifecycle events.

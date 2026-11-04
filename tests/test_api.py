@@ -178,9 +178,29 @@ class ApiTests(unittest.TestCase):
         events = json.load(self.request(f"/tasks/{retryable['id']}/events"))
         self.assertIn("requeued", [event["event"] for event in events])
 
+    def test_health_reports_current_release(self):
+        self.assertEqual(json.load(self.request("/health"))["version"], "0.5.0")
+
     def test_workflow_templates_are_discoverable(self):
         templates = json.load(self.request("/workflow-templates"))
         self.assertIn("research-brief", [item["id"] for item in templates])
+
+    def test_identity_and_metrics_reflect_credential_scope(self):
+        root = json.load(self.request("/me"))
+        self.assertTrue(root["platform_admin"])
+        self.assertTrue(root["can_view_metrics"])
+        metrics = json.load(self.request("/metrics"))
+        self.assertEqual(metrics["budget_limit_usd"], 5)
+        workspace = json.load(self.request("/workspaces", "POST", {"name": "role check"}))
+        owner = json.load(self.request("/me", token=workspace["owner_key"]["token"]))
+        self.assertEqual(owner["role"], "owner")
+        self.assertFalse(owner["platform_admin"])
+        agent = json.load(self.request("/agents", "POST", {"name": "Metrics agent"}))
+        agent_key = json.load(self.request("/api-keys", "POST", {"name": "metrics agent", "role": "agent", "agent_id": agent["id"]}))
+        agent_me = json.load(self.request("/me", role="agent", token=agent_key["token"]))
+        self.assertFalse(agent_me["can_manage_tasks"])
+        self.assertFalse(agent_me["can_view_metrics"])
+        self.assertEqual(self.request("/metrics", token=agent_key["token"]).code, 403)
 
     def test_budget_cap_and_disabled_runner(self):
         self.assertEqual(self.request("/objectives", "POST", {"title": "Too much", "budget_usd": 5.01}).code, 422)
