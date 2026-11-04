@@ -67,8 +67,8 @@ All paths below are relative to `/api/v1` unless noted.
 For application code, the [Python and JavaScript client quickstarts](../sdks/README.md) wrap identity, workflow discovery, task listing, claiming, and result reporting without extra dependencies.
 
 - `POST /mcp` supports stateless MCP `2026-07-28` discovery and tool calls, plus the legacy `2025-11-25` initialize flow. Modern calls must include per-request metadata and matching `MCP-Protocol-Version`, `Mcp-Method`, and (for `tools/call`) `Mcp-Name` headers. HTTP origins are restricted to `AIOS_CORS_ORIGINS`; authenticated tool calls expose workflow discovery, eligible task listing, and objective proposals. Proposals still require human approval.
-- `GET /.well-known/agent-card.json` publishes a discovery card.
-- `POST /a2a` accepts the MVP `message/send` objective-proposal profile. Requests create a `proposed` objective; this endpoint is not a complete implementation of all A2A task lifecycle features.
+- `GET /.well-known/agent-card.json` publishes an A2A 1.0 Agent Card with a JSON-RPC interface and declared bearer authentication.
+- `POST /a2a` implements the A2A 1.0 JSON-RPC `SendMessage` proposal profile (and accepts the older `message/send` method alias). Send a JSON-RPC 2.0 request with `params.message.parts` containing text. The response is a JSON-RPC result containing an A2A `Task` in `TASK_STATE_INPUT_REQUIRED`; the task metadata marks that human approval is required. This MVP supports proposal creation only: task polling, streaming, cancellation, push notifications, and gRPC/REST bindings are not implemented. Use the AI OS API to review and approve the objective and manage resulting tasks.
 - `GET /openapi.yaml`, `/llms.txt`, `/robots.txt`, and `/sitemap.xml` expose machine-readable API and discovery metadata. Set `AIOS_PUBLIC_URL` when serving a real public HTTPS origin so absolute discovery links are correct. This does not deploy the service.
 
 ## Server configuration
