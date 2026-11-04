@@ -113,7 +113,7 @@ class Handler(BaseHTTPRequestHandler):
  def do_OPTIONS(self):
   self.send_response(204); origin=self.headers.get("Origin","")
   if origin in ALLOWED_ORIGINS:self.send_header("Access-Control-Allow-Origin",origin); self.send_header("Vary","Origin")
-  self.send_header("Access-Control-Allow-Headers","Authorization,Content-Type"); self.send_header("Access-Control-Allow-Methods","GET,POST,PATCH,DELETE,OPTIONS"); self.end_headers()
+  self.send_header("Access-Control-Allow-Headers","Authorization,Content-Type,MCP-Protocol-Version,Mcp-Method,Mcp-Name"); self.send_header("Access-Control-Allow-Methods","GET,POST,PATCH,DELETE,OPTIONS"); self.end_headers()
  def body(self):
   try: return json.loads(self.rfile.read(int(self.headers.get("Content-Length","0"))))
   except Exception: return None
@@ -123,10 +123,10 @@ class Handler(BaseHTTPRequestHandler):
   return {"id":key_id,"token":raw,"role":role,"workspace_id":workspace_id,"agent_id":agent_id,"scopes":scopes}
  def do_GET(self):
   path=urlparse(self.path).path
-  if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.9.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
+  if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.10.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
   if path in ("/.well-known/agent-card.json","/agent-card.json"):
    endpoint=(PUBLIC_URL+"/a2a") if PUBLIC_URL else "http://localhost:8000/a2a"
-   return self.reply(200,{"name":"AI OS","description":"Human-supervised workspace for interoperable AI agents.","url":endpoint,"version":"0.9.0","capabilities":{"streaming":False,"pushNotifications":False,"stateTransitionHistory":True},"skills":[{"id":"coordinate-approved-work","name":"Coordinate approved work","description":"Discover workflows and claim tasks only after human approval.","tags":["tasks","coordination","human-approval"]}],"securitySchemes":{"bearerAuth":{"type":"http","scheme":"bearer"}},"security":[{"bearerAuth":[]}]})
+   return self.reply(200,{"name":"AI OS","description":"Human-supervised workspace for interoperable AI agents.","url":endpoint,"version":"0.10.0","capabilities":{"streaming":False,"pushNotifications":False,"stateTransitionHistory":True},"skills":[{"id":"coordinate-approved-work","name":"Coordinate approved work","description":"Discover workflows and claim tasks only after human approval.","tags":["tasks","coordination","human-approval"]}],"securitySchemes":{"bearerAuth":{"type":"http","scheme":"bearer"}},"security":[{"bearerAuth":[]}]})
   if path in ("/robots.txt","/llms.txt","/sitemap.xml","/.well-known/ai-plugin.json"):
    if path=="/robots.txt":
     body="User-agent: *\nAllow: /\nDisallow: /api/\n"
@@ -233,28 +233,62 @@ class Handler(BaseHTTPRequestHandler):
    try:return self.reply(200,create_plan(title,description,float(budget)))
    except RuntimeError as exc:return self.reply(502,{"error":str(exc)})
   if path=="/mcp":
+   origin=self.headers.get("Origin","")
+   if origin and origin not in ALLOWED_ORIGINS:return self.reply(403,{"error":"MCP origin is not allowed"})
    request_id=body.get("id"); method=body.get("method"); params=body.get("params",{})
-   def mcp_result(result): return self.reply(200,{"jsonrpc":"2.0","id":request_id,"result":result})
-   def mcp_error(code,message): return self.reply(200,{"jsonrpc":"2.0","id":request_id,"error":{"code":code,"message":message}})
-   if method=="initialize": return mcp_result({"protocolVersion":"2025-11-25","capabilities":{"tools":{"listChanged":False}},"serverInfo":{"name":"AI OS","version":"0.9.0"}})
+   if not isinstance(params,dict):params={}
+   meta=params.get("_meta",{})
+   if not isinstance(meta,dict):meta={}
+   version_key="io.modelcontextprotocol/protocolVersion"
+   capabilities_key="io.modelcontextprotocol/clientCapabilities"
+   requested_version=meta.get(version_key)
+   header_version=self.headers.get("MCP-Protocol-Version")
+   modern=bool(requested_version or header_version or method=="server/discover")
+   def mcp_result(result):
+    if modern:
+     result={**result,"resultType":"complete","_meta":{"io.modelcontextprotocol/serverInfo":{"name":"AI OS","version":"0.10.0"}}}
+    return self.reply(200,{"jsonrpc":"2.0","id":request_id,"result":result})
+   def mcp_error(code,message,status=200,data=None):
+    error={"code":code,"message":message}
+    if data is not None:error["data"]=data
+    return self.reply(status,{"jsonrpc":"2.0","id":request_id,"error":error})
+   if modern:
+    supported=["2026-07-28","2025-11-25"]
+    if requested_version not in supported:return mcp_error(-32022,"Unsupported protocol version",400,{"supported":supported,"requested":requested_version})
+    if not isinstance(meta.get(capabilities_key),dict):return mcp_error(-32602,"client capabilities are required in request metadata",400)
+    if header_version!=requested_version:return mcp_error(-32020,"MCP-Protocol-Version header does not match request metadata",400)
+    if self.headers.get("Mcp-Method")!=method:return mcp_error(-32020,"Mcp-Method header does not match the JSON-RPC method",400)
+    if method=="tools/call" and self.headers.get("Mcp-Name")!=str(params.get("name","")):return mcp_error(-32020,"Mcp-Name header does not match params.name",400)
+   if method=="server/discover":
+    return mcp_result({"supportedVersions":["2026-07-28","2025-11-25"],"capabilities":{"tools":{}},"instructions":"AI OS coordinates approval-gated objectives and budgeted tasks. Read-only tools can list templates and eligible work; proposing an objective never queues it.","ttlMs":300000,"cacheScope":"private"})
+   if method=="initialize":
+    if modern:return mcp_error(-32601,"initialize is only available to legacy MCP clients",404)
+    return mcp_result({"protocolVersion":"2025-11-25","capabilities":{"tools":{"listChanged":False}},"serverInfo":{"name":"AI OS","version":"0.10.0"}})
    if method=="notifications/initialized": return self.reply(202,{})
+   tools=[
+    {"name":"list_workflow_templates","description":"List safe workflow templates.","inputSchema":{"type":"object","additionalProperties":False}},
+    {"name":"list_tasks","description":"List tasks available to this authenticated workspace identity.","inputSchema":{"type":"object","additionalProperties":False}},
+    {"name":"propose_objective","description":"Create a proposed objective that still requires human approval; it does not queue tasks.","inputSchema":{"type":"object","additionalProperties":False,"required":["title"],"properties":{"title":{"type":"string","maxLength":240},"description":{"type":"string","maxLength":4000},"budget_usd":{"type":"number","minimum":0,"maximum":MAX_BUDGET}}}}
+   ]
    if method=="tools/list":
-    return mcp_result({"tools":[{"name":"list_workflow_templates","description":"List safe workflow templates.","inputSchema":{"type":"object","properties":{}}},{"name":"list_tasks","description":"List tasks available in this workspace.","inputSchema":{"type":"object","properties":{}}},{"name":"propose_objective","description":"Create a proposed objective that still requires human approval.","inputSchema":{"type":"object","required":["title"],"properties":{"title":{"type":"string"},"description":{"type":"string"},"budget_usd":{"type":"number"}}}}]})
-   if method!="tools/call": return mcp_error(-32601,"Method not found")
+    if modern:return mcp_result({"tools":tools,"ttlMs":300000,"cacheScope":"private"})
+    return mcp_result({"tools":tools})
+   if method!="tools/call": return mcp_error(-32601,"Method not found",404 if modern else 200)
    tool=params.get("name"); args=params.get("arguments",{})
-   if tool=="list_workflow_templates": return mcp_result({"content":[{"type":"text","text":json.dumps(WORKFLOW_TEMPLATES)}]})
+   if not isinstance(args,dict):return mcp_error(-32602,"Tool arguments must be an object")
+   if tool=="list_workflow_templates": return mcp_result({"content":[{"type":"text","text":json.dumps(WORKFLOW_TEMPLATES)}],"isError":False})
    if tool=="list_tasks":
     with LOCK,connect() as db:
      rows=db.execute("SELECT t.id,t.title,t.description,t.status,t.assigned_agent_id,t.deadline_at,o.title AS objective_title,o.description AS objective_description FROM tasks t JOIN objectives o ON o.id=t.objective_id AND o.workspace_id=t.workspace_id WHERE t.workspace_id=? ORDER BY t.created_at DESC LIMIT 100",(workspace_id,)) if role in ("admin","owner","member","viewer") else db.execute("SELECT t.id,t.title,t.description,t.status,t.assigned_agent_id,t.deadline_at,o.title AS objective_title,o.description AS objective_description FROM tasks t JOIN objectives o ON o.id=t.objective_id AND o.workspace_id=t.workspace_id WHERE t.workspace_id=? AND o.status='approved' AND t.status='queued' AND (t.assigned_agent_id IS NULL OR t.assigned_agent_id=?) AND NOT EXISTS (SELECT 1 FROM json_each(t.depends_on) d LEFT JOIN tasks dep ON dep.id=d.value AND dep.workspace_id=t.workspace_id WHERE dep.status IS NULL OR dep.status!='completed') ORDER BY t.created_at LIMIT 100",(workspace_id,principal["agent_id"] or ""))
      data=[dict(x) for x in rows]
-    return mcp_result({"content":[{"type":"text","text":json.dumps(data)}]})
+    return mcp_result({"content":[{"type":"text","text":json.dumps(data)}],"isError":False})
    if tool=="propose_objective":
     if role not in ("admin","owner","member","agent"):return mcp_error(-32003,"Authenticated workspace credential required")
     title=str(args.get("title","" )).strip(); budget=args.get("budget_usd",0)
-    if not title or len(title)>240 or not isinstance(budget,(int,float)) or budget<0 or budget>MAX_BUDGET:return mcp_error(-32602,"Invalid title or budget")
+    if not title or len(title)>240 or not isinstance(budget,(int,float)) or not math.isfinite(budget) or budget<0 or budget>MAX_BUDGET:return mcp_error(-32602,"Invalid title or budget")
     oid=str(uuid.uuid4())
     with LOCK,connect() as db: db.execute("INSERT INTO objectives(id,workspace_id,title,description,budget,status) VALUES(?,?,?,?,?,'proposed')",(oid,workspace_id,title,str(args.get("description",""))[:4000],float(budget))); audit(db,"objective.proposed",oid,role,"source=mcp",workspace_id)
-    return mcp_result({"content":[{"type":"text","text":json.dumps({"id":oid,"status":"proposed","approval_required":True})}]})
+    return mcp_result({"content":[{"type":"text","text":json.dumps({"id":oid,"status":"proposed","approval_required":True})}],"isError":False})
    return mcp_error(-32602,"Unknown tool")
   if path=="/a2a":
    request_id=body.get("id"); method=body.get("method"); params=body.get("params",{})

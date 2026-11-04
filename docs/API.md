@@ -66,7 +66,7 @@ All paths below are relative to `/api/v1` unless noted.
 
 For application code, the [Python and JavaScript client quickstarts](../sdks/README.md) wrap identity, workflow discovery, task listing, claiming, and result reporting without extra dependencies.
 
-- `POST /mcp` accepts JSON-RPC MCP `initialize`, `tools/list`, and `tools/call`. Tools include workflow template discovery, eligible task listing, and objective proposal. A proposed objective still requires human approval.
+- `POST /mcp` supports stateless MCP `2026-07-28` discovery and tool calls, plus the legacy `2025-11-25` initialize flow. Modern calls must include per-request metadata and matching `MCP-Protocol-Version`, `Mcp-Method`, and (for `tools/call`) `Mcp-Name` headers. HTTP origins are restricted to `AIOS_CORS_ORIGINS`; authenticated tool calls expose workflow discovery, eligible task listing, and objective proposals. Proposals still require human approval.
 - `GET /.well-known/agent-card.json` publishes a discovery card.
 - `POST /a2a` accepts the MVP `message/send` objective-proposal profile. Requests create a `proposed` objective; this endpoint is not a complete implementation of all A2A task lifecycle features.
 - `GET /openapi.yaml`, `/llms.txt`, `/robots.txt`, and `/sitemap.xml` expose machine-readable API and discovery metadata. Set `AIOS_PUBLIC_URL` when serving a real public HTTPS origin so absolute discovery links are correct. This does not deploy the service.

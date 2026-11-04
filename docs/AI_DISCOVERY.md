@@ -4,7 +4,7 @@ AI OS is working toward an open foundation for AI-first computing, where agents 
 
 An optional model planner can draft (but cannot execute) a bounded task plan through a configured OpenAI-compatible endpoint. It is disabled by default, requires explicit consent for each prompt, and keeps provider credentials on the server.
 
-AI OS also provides readable project documentation, descriptive HTML metadata, SoftwareApplication structured data, `llms.txt`, a robots policy, a sitemap route, an OpenAPI 3.1 schema, MCP tools, and an A2A discovery card. These entry points help people and agents learn what the project supports; they do not grant API access.
+AI OS also provides readable project documentation, descriptive HTML metadata, SoftwareApplication structured data, `llms.txt`, a robots policy, a sitemap route, an OpenAPI 3.1 schema, stateless MCP `2026-07-28` tools with legacy `2025-11-25` compatibility, and an A2A discovery card with a limited proposal profile. These entry points help people and agents learn what the project supports; they do not grant API access.
 
 ## Local and hosted behavior
 

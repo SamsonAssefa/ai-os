@@ -144,6 +144,60 @@ class ApiTests(unittest.TestCase):
         a2a_result = json.load(urllib.request.urlopen(a2a, timeout=3))
         self.assertEqual(a2a_result["result"]["status"]["state"], "input-required")
 
+    def test_current_mcp_protocol_discovers_and_lists_tools_statelessly(self):
+        def call(method, params=None, extra_headers=None):
+            request_id = "modern-1"
+            payload = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": {
+                **(params or {}), "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                    "io.modelcontextprotocol/clientInfo": {"name": "test-client", "version": "1.0"},
+                },
+            }}
+            headers = {
+                "Content-Type": "application/json",
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": method,
+            }
+            if method == "tools/call":
+                headers["Mcp-Name"] = str((params or {}).get("name", ""))
+            headers.update(extra_headers or {})
+            request = urllib.request.Request(f"http://127.0.0.1:{self.port}/mcp", data=json.dumps(payload).encode(), headers=headers, method="POST")
+            try:
+                return urllib.request.urlopen(request, timeout=3)
+            except urllib.error.HTTPError as exc:
+                return exc
+
+        discovery = json.load(call("server/discover"))
+        self.assertEqual(discovery["result"]["supportedVersions"], ["2026-07-28", "2025-11-25"])
+        listed = json.load(call("tools/list"))
+        self.assertEqual(listed["result"]["resultType"], "complete")
+        self.assertEqual([tool["name"] for tool in listed["result"]["tools"]], ["list_workflow_templates", "list_tasks", "propose_objective"])
+        proposal = json.load(call("tools/call", {"name": "propose_objective", "arguments": {"title": "MCP modern proposal", "budget_usd": 1}}))
+        result = json.loads(proposal["result"]["content"][0]["text"])
+        self.assertEqual(proposal["result"]["resultType"], "complete")
+        self.assertEqual(result["status"], "proposed")
+        self.assertTrue(result["approval_required"])
+
+    def test_current_mcp_rejects_header_mismatch_and_disallowed_origin(self):
+        payload = {"jsonrpc": "2.0", "id": 1, "method": "server/discover", "params": {"_meta": {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientCapabilities": {},
+        }}}
+        headers = {"Content-Type": "application/json", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list"}
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}/mcp", data=json.dumps(payload).encode(), headers=headers, method="POST")
+        with self.assertRaises(urllib.error.HTTPError) as mismatch:
+            urllib.request.urlopen(request, timeout=3)
+        self.assertEqual(mismatch.exception.code, 400)
+        self.assertEqual(json.load(mismatch.exception)["error"]["code"], -32020)
+
+        headers["Mcp-Method"] = "server/discover"
+        headers["Origin"] = "https://untrusted.example"
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}/mcp", data=json.dumps(payload).encode(), headers=headers, method="POST")
+        with self.assertRaises(urllib.error.HTTPError) as origin:
+            urllib.request.urlopen(request, timeout=3)
+        self.assertEqual(origin.exception.code, 403)
+
     def test_extension_metadata_needs_admin_review_and_runner_stays_opt_in(self):
         submitted = json.load(self.request("/plugins", "POST", {"id": "example-addon", "name": "Example", "version": "1.0.0", "api_version": "v1", "requested_permissions": ["read:tasks"], "description": "Test catalog item"}))
         self.assertEqual(submitted["status"], "pending_review")
@@ -179,7 +233,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn("requeued", [event["event"] for event in events])
 
     def test_health_reports_current_release(self):
-        self.assertEqual(json.load(self.request("/health"))["version"], "0.9.0")
+        self.assertEqual(json.load(self.request("/health"))["version"], "0.10.0")
 
     def test_model_planner_is_disabled_by_default_and_requires_consent(self):
         status = json.load(self.request("/planner/status"))
