@@ -10,10 +10,12 @@ Set `AIOS_MAX_BUDGET_USD` for the maximum objective budget (default `$5`). State
 
 - `GET /health` — service health/version.
 - `GET /capabilities` — starter capability catalog.
+- `GET /workflow-templates` — reusable objective templates.
+- `GET /workflow-templates` — reusable objective templates with suggested tasks.
 - `GET|POST /agents` — list/register `{ "name": "Researcher", "kind": "custom", "capabilities": ["research"] }`.
 - `GET|POST /objectives` — list/propose `{ "title": "...", "description": "...", "budget_usd": 1.25 }`.
 - `PATCH /objectives/{id}/approve` — human admin approves a proposal.
-- `GET|POST /tasks` — admins list tasks or queue `{ "objective_id": "...", "title": "..." }`. Task creation requires an approved objective.
+- `GET|POST /tasks` — admins list tasks or queue `{ "objective_id": "...", "title": "...", "assigned_agent_id": "optional-agent-id" }`. Task creation requires an approved objective. Assigned tasks can only be claimed by that agent.
 - `POST /tasks/{id}/claim` — agent claims a queued task using `{ "agent_id": "..." }`.
 - `PATCH /tasks/{id}` — claimed agent reports `{ "agent_id": "...", "status": "completed|failed", "result": "...", "spent_usd": 0.12 }`. Cumulative reported spend cannot exceed the objective budget.
 - `GET /audit` — human admin audit trail.
