@@ -6,7 +6,7 @@ AI OS aims to become a user-owned computing platform where people and AI agents 
 
 The current product is an early self-hosted coordination workspace. It is not a desktop operating system yet. The intended path is to make the open agent workspace reliable first, grow it into an AI-native desktop experience that can run alongside existing systems, then explore an optional standalone Linux-based distribution. The system should stay model-neutral and portable, with people controlling data, access, spending, and external actions.
 
-## Available in v0.8.0
+## Available in v0.9.0
 
 - Browser workspace with a goal-centered AI workbench, template-based proposal preview, visible budget and permission boundaries, human approval prompts, black-and-white default, appearance customization, objective/task views, activity, team workspaces, scoped access keys, extension metadata catalog, live operations metrics, task reservations/dependencies/deadlines, and owner recovery controls. Optional consent-gated AI planning returns a bounded draft from a configured OpenAI-compatible model; drafts are never executed automatically.
 - JSON API, OpenAPI reference, MCP tool profile, A2A agent discovery card, and a limited A2A objective-proposal profile.
@@ -15,6 +15,9 @@ The current product is an early self-hosted coordination workspace. It is not a 
 - Optional local Docker runner for reviewed, digest-pinned extensions. It is disabled by default, offline, read-only, unprivileged, and resource limited.
 - Worker example, user manual, AI discovery resources, tests, MIT license, and GitHub Actions CI.
 - Dependency-free Python and JavaScript clients with shared agent quickstarts, common task operations, and API error handling.
+- Guided model-provider setup in the UI with safe live status, copyable environment configuration, and no provider-secret entry in the browser.
+- Provider-neutral OpenAI-compatible example worker with HTTPS enforcement for remote endpoints and support for existing OpenAI environment variable names.
+- In-product integration directory clarifying which model, agent protocol, SDK, and extension paths are available today.
 
 ## Next priorities
 

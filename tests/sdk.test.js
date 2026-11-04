@@ -1,6 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
 import { AIOSAPIError, AIOSClient } from "../sdks/javascript/index.js";
+
+test("embedded workspace script parses as JavaScript", () => {
+  const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const script = html.match(/<script>([\s\S]*?)<\/script><\/html>/)?.[1];
+  assert.ok(script, "workspace script exists");
+  assert.doesNotThrow(() => new vm.Script(script));
+  assert.match(html, /id="plannerSetupStatus"/);
+  assert.match(html, /id="copyPlannerConfig"/);
+  assert.doesNotMatch(html, /id="plannerApiKey"/);
+});
 
 test("normalizes the API URL, adds bearer auth, and lists tasks", async () => {
   let captured;

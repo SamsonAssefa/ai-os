@@ -23,10 +23,12 @@ Open [http://localhost:8000](http://localhost:8000). Local development mode is i
 ## What is included
 
 - Goal-centered AI workbench with template-based proposal preview, clear budget and permission boundaries, and human approval before work can run. Optional consent-gated AI plan drafts work with a configured OpenAI-compatible model; drafts still require human review.
+- Guided, secret-free model setup with a live configuration status, copyable server instructions, and an integration directory for supported agent and extension interfaces.
 - Workspace-scoped API keys with owner, admin, member, viewer, and agent roles. Agent keys can be bound to a registered agent and are shown only once. The UI displays workspace usage and offers role-aware task controls.
 - Approval-gated objectives, task assignment, spending reservations, budget enforcement, deadlines, dependencies, retries, cancellation requests, and task event history.
 - Human-readable API docs and OpenAPI 3.1 schema; MCP tool endpoint and A2A agent card / objective proposal profile.
 - Dependency-free Python and JavaScript client libraries for connecting agents and completing the task lifecycle.
+- Provider-neutral worker example for OpenAI-compatible model APIs; remote credentials travel only over HTTPS and local HTTP is restricted to loopback endpoints.
 - Extension metadata catalog with human review and an optional, disabled-by-default Docker runner. The runner is offline, read-only, digest-pinned, resource-limited, and receives no host credentials or mounts.
 - Workspace export/import, administrator-only full database snapshots, metrics, audit history, AI discovery metadata, tests, and GitHub Actions CI.
 

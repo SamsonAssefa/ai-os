@@ -179,7 +179,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn("requeued", [event["event"] for event in events])
 
     def test_health_reports_current_release(self):
-        self.assertEqual(json.load(self.request("/health"))["version"], "0.8.0")
+        self.assertEqual(json.load(self.request("/health"))["version"], "0.9.0")
 
     def test_model_planner_is_disabled_by_default_and_requires_consent(self):
         status = json.load(self.request("/planner/status"))

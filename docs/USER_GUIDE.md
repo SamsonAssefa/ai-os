@@ -40,7 +40,21 @@ Dynamic agent keys should be bound to one registered agent. `AIOS_AGENT_TOKEN` r
 
 For a network-facing host, configure a unique strong `AIOS_ADMIN_TOKEN`, `AIOS_HOST`, and exact browser origins in `AIOS_CORS_ORIGINS`. The server refuses a non-loopback bind unless an admin token is set. This is a basic safety check, not full production hosting guidance: use HTTPS, a reverse proxy, identity management, request limits, and secret rotation.
 
-## 3. Connect an agent
+## 3. Connect a model provider
+
+Open **Connect & build → Set up a model provider** for a guided setup. Choose a local endpoint or a hosted HTTPS endpoint, enter its API base URL and model name, then copy the generated server settings. The page does not accept or store provider keys. Set any required `AIOS_MODEL_API_KEY` in the private environment that starts the server, then restart AI OS. The configured model and provider host appear in the workspace; the secret never does.
+
+Example local setup for an OpenAI-compatible server listening on the usual local port:
+
+```sh
+AIOS_MODEL_BASE_URL='http://127.0.0.1:11434/v1' \
+AIOS_MODEL_NAME='your-local-model' \
+python3 server.py
+```
+
+For a hosted provider, use its HTTPS API base URL and set `AIOS_MODEL_API_KEY` privately on the server. Do not include credentials in the base URL. Provider requests are made only when an owner/admin explicitly asks for a plan and checks the consent box; that sends the objective title and context and may incur provider charges.
+
+## 4. Connect an agent
 
 1. Open **Agents** and register an agent. This creates a visible identity; it does not grant system or file access.
 2. Copy the generated agent ID.
@@ -48,22 +62,25 @@ For a network-facing host, configure a unique strong `AIOS_ADMIN_TOKEN`, `AIOS_H
 4. Give the worker a scoped bearer key in its environment. Prefer an agent-bound key.
 5. Implement an adapter for your framework or provider. Workers poll `GET /api/v1/tasks`, claim tasks, execute them in their own trusted runtime, and report results.
 
-The included `examples/agent.py` demonstrates a polling worker that calls a model provider. It requires your own provider key and pricing rates:
+The included `examples/agent.py` demonstrates a polling worker that calls an OpenAI-compatible model provider. It requires your own provider key and current pricing rates:
 
 ```sh
 AIOS_URL='http://localhost:8000/api/v1' \
 AIOS_AGENT_TOKEN='your-agent-token' \
 AIOS_AGENT_ID='your-agent-id' \
-OPENAI_API_KEY='your-provider-key' \
-OPENAI_MODEL='gpt-4.1-mini' \
-OPENAI_INPUT_USD_PER_MILLION_TOKENS='current-input-rate' \
-OPENAI_OUTPUT_USD_PER_MILLION_TOKENS='current-output-rate' \
+MODEL_API_KEY='your-provider-key' \
+MODEL_BASE_URL='https://api.example.com/v1' \
+MODEL_NAME='your-model-name' \
+MODEL_INPUT_USD_PER_MILLION_TOKENS='current-input-rate' \
+MODEL_OUTPUT_USD_PER_MILLION_TOKENS='current-output-rate' \
 python3 examples/agent.py
 ```
 
 Use current model pricing from your provider. The example calculates a cost estimate from usage and the rates you supplied; AI OS cannot verify a provider invoice. Keep keys in the worker environment and avoid placing sensitive data in task descriptions.
 
-## 4. Create bounded work
+`OPENAI_API_KEY`, `OPENAI_MODEL`, and the legacy `OPENAI_*_USD_PER_MILLION_TOKENS` rate names remain accepted. Remote worker endpoints must use HTTPS; plain HTTP is allowed only for loopback.
+
+## 5. Create bounded work
 
 1. From **Workspace**, describe the outcome, optionally select a workflow template, and review the proposal preview. It shows suggested template steps, budget ceiling, and approval boundary; it does not call a model or start an agent. Submit the objective as a proposal.
 2. Open **Objectives & tasks** and approve the proposal after reviewing its scope and budget.
@@ -76,7 +93,7 @@ Templates for Research brief, Code review, Content draft, and Workflow planning 
 
 If a server administrator configures an OpenAI-compatible model endpoint, an owner/admin can opt in to draft a task plan. The checkbox discloses that the goal and context will be sent to the displayed provider. The result is only a draft; check every step, revise the objective, submit it for human approval, and create tasks only after approval. Planning can incur a separate provider charge outside the task budget. Without configuration, workflow templates continue to work and no model request is made.
 
-## 5. Monitor and recover
+## 6. Monitor and recover
 
 - **Workspace** shows counts, total spend and reservations, and queue status for owners. `GET /api/v1/me` reports the current credential role and workspace without returning secrets.
 - **Objectives & tasks** shows approval state, assignment, result, and spend.
@@ -86,7 +103,7 @@ If a server administrator configures an OpenAI-compatible model endpoint, an own
 - Owners can export a workspace using `GET /api/v1/export`. Import only accepts an empty workspace, assigns fresh record IDs, resets objectives to proposed, and cancels unfinished tasks for review.
 - Full SQLite snapshots include every workspace and are therefore restricted to the bootstrap admin at `POST /api/v1/backups`. Store snapshots with restrictive filesystem access and copy them off the host securely.
 
-## 6. Build on the hub
+## 7. Build on the hub
 
 AI OS supports multiple integration styles:
 
