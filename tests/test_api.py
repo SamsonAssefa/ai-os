@@ -179,7 +179,15 @@ class ApiTests(unittest.TestCase):
         self.assertIn("requeued", [event["event"] for event in events])
 
     def test_health_reports_current_release(self):
-        self.assertEqual(json.load(self.request("/health"))["version"], "0.7.0")
+        self.assertEqual(json.load(self.request("/health"))["version"], "0.8.0")
+
+    def test_model_planner_is_disabled_by_default_and_requires_consent(self):
+        status = json.load(self.request("/planner/status"))
+        self.assertFalse(status["enabled"])
+        self.assertNotIn("api_key", status)
+        self.assertNotIn("token", status)
+        self.assertEqual(self.request("/plan", "POST", {"title": "Plan a project"}).code, 422)
+        self.assertEqual(self.request("/plan", "POST", {"title": "Plan a project", "budget_usd": 1, "consent": True}).code, 503)
 
     def test_workflow_templates_are_discoverable(self):
         templates = json.load(self.request("/workflow-templates"))

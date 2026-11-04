@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AI OS API
-  version: 0.7.0
+  version: 0.8.0
   summary: Human-supervised coordination hub for AI agents.
   description: Workspace-scoped API for approval-gated objectives, budgeted tasks, agents, and extension metadata.
 servers:
@@ -30,6 +30,34 @@ paths:
       summary: List workflow templates
       responses:
         '200': {description: Templates}
+  /planner/status:
+    get:
+      summary: Report whether an optional model planner is configured
+      responses:
+        '200': {description: Model and provider host metadata; never returns credentials}
+  /plan:
+    post:
+      summary: Draft a bounded task plan with explicit user consent
+      description: Sends the objective to the configured OpenAI-compatible model. This only drafts a plan; it does not create objectives or tasks. Provider charges are separate from objective budgets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, budget_usd, consent]
+              properties:
+                title: {type: string, maxLength: 240}
+                description: {type: string, maxLength: 4000}
+                budget_usd: {type: number, minimum: 0, maximum: 5}
+                consent: {type: boolean, const: true}
+      responses:
+        '200': {description: Draft plan with 1 to 8 reviewable tasks}
+        '403': {description: Workspace owner or admin required}
+        '422': {description: Invalid input or explicit consent missing}
+        '429': {description: Planner request limit reached}
+        '503': {description: Planner is not configured}
+        '502': {description: Model endpoint failed or returned invalid plan data}
   /workspaces:
     get:
       summary: List accessible workspaces

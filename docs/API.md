@@ -28,6 +28,12 @@ Workspace data is isolated by the credential's workspace. Admin keys minted for 
 
 The default per-objective budget cap is `$5.00`, configurable using `AIOS_MAX_BUDGET_USD`. A task's reservation is limited to remaining objective budget. Reported spend cannot exceed its reservation. Configure current model rates in your worker; AI OS does not verify provider invoices.
 
+## Optional AI planner
+
+Configure `AIOS_MODEL_BASE_URL` and `AIOS_MODEL_NAME` on the server to enable an OpenAI-compatible `/chat/completions` endpoint. The endpoint can be local; remote endpoints must use HTTPS. Keep an optional `AIOS_MODEL_API_KEY` in the server environment or secret manager. The key is never returned by the API or sent to the browser. The planner is disabled by default.
+
+The browser requires explicit consent before sending the objective title and context to the configured model provider. `GET /planner/status` returns only provider host, model, and local/secure status. `POST /plan` is limited to workspace owners/admins and five calls per workspace/IP per minute. It returns a summary and 1–8 validated tasks with bounded text. The planner does not receive tools and cannot create records. The UI may include the draft in a proposed objective for review; owners still approve the objective and explicitly queue tasks. Planning-provider charges are separate from the objective budget and are not metered by AI OS.
+
 ## Routes
 
 All paths below are relative to `/api/v1` unless noted.
@@ -35,6 +41,7 @@ All paths below are relative to `/api/v1` unless noted.
 | Method and path | Permission | Purpose |
 |---|---|---|
 | `GET /health` | Public | Liveness and version |
+| `GET /planner/status`, `POST /plan` | Owner / admin for drafting | Check optional planner configuration or request a consent-gated task-plan draft |
 | `GET /me` | Authenticated | Credential role, workspace, and available UI controls (no secret values) |
 | `GET /capabilities`, `GET /workflow-templates` | Authenticated | Discover built-in workflow capabilities |
 | `GET/POST /workspaces` | Admin / owner | List accessible workspaces or create one (new owner key shown once) |
@@ -72,6 +79,8 @@ For application code, the [Python and JavaScript client quickstarts](../sdks/REA
 - `AIOS_CORS_ORIGINS` (comma-separated exact origins; defaults to localhost and 127.0.0.1 on port 8000).
 - `AIOS_DB_PATH` (SQLite file; default `aios.sqlite3` beside the app).
 - `AIOS_MAX_BUDGET_USD` (maximum objective budget; default `5.00`).
+- `AIOS_MODEL_BASE_URL`, `AIOS_MODEL_NAME`, optional `AIOS_MODEL_API_KEY` (optional OpenAI-compatible planner; disabled unless configured; remote URLs must use HTTPS).
+- `AIOS_PLANNER_MAX_OUTPUT_TOKENS` (planner response limit; default `800`, bounded to `200`–`1200`).
 - `AIOS_BACKUP_DIR` (snapshot destination; default `backups/`).
 - `AIOS_ENABLE_SANDBOX=1` (explicit opt-in to Docker extension runner; default disabled).
 

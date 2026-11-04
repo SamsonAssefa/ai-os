@@ -74,6 +74,8 @@ The default maximum objective budget is `$5.00`; configure `AIOS_MAX_BUDGET_USD`
 
 Templates for Research brief, Code review, Content draft, and Workflow planning are available in the workspace. Templates are starting points; review the objective and all generated task details before approval.
 
+If a server administrator configures an OpenAI-compatible model endpoint, an owner/admin can opt in to draft a task plan. The checkbox discloses that the goal and context will be sent to the displayed provider. The result is only a draft; check every step, revise the objective, submit it for human approval, and create tasks only after approval. Planning can incur a separate provider charge outside the task budget. Without configuration, workflow templates continue to work and no model request is made.
+
 ## 5. Monitor and recover
 
 - **Workspace** shows counts, total spend and reservations, and queue status for owners. `GET /api/v1/me` reports the current credential role and workspace without returning secrets.
