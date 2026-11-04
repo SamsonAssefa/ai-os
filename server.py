@@ -1,11 +1,16 @@
 """AI OS MVP: approval-gated, budget-aware agent task coordinator."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 import json, os, secrets, sqlite3, threading, uuid
 
 ROOT=os.path.dirname(__file__); DB=os.getenv("AIOS_DB_PATH",os.path.join(ROOT,"aios.sqlite3")); PUBLIC_URL=os.getenv("AIOS_PUBLIC_URL","").rstrip("/")
 ADMIN_TOKEN=os.getenv("AIOS_ADMIN_TOKEN",""); AGENT_TOKEN=os.getenv("AIOS_AGENT_TOKEN","")
 MAX_BUDGET=float(os.getenv("AIOS_MAX_BUDGET_USD","5.00")); LOCK=threading.RLock()
+WORKFLOW_TEMPLATES=[
+ {"id":"research-brief","name":"Research brief","description":"Collect reliable sources and synthesize key findings.","title":"Prepare a research brief","objective":"Produce a cited summary with key findings, open questions, and source links.","budget_usd":2.0,"suggested_tasks":["Gather authoritative sources","Synthesize findings and cite sources"]},
+ {"id":"code-review","name":"Code review","description":"Review a proposed change and return prioritized findings.","title":"Review a code change","objective":"Inspect the change for correctness, security, and missing tests. Return findings with file and line references.","budget_usd":1.0,"suggested_tasks":["Inspect the change and identify risks","Check test coverage and report actionable findings"]},
+ {"id":"content-draft","name":"Content draft","description":"Create a reviewable first draft from a brief.","title":"Draft content for review","objective":"Write a clearly structured first draft that follows the supplied brief and flags facts that need verification.","budget_usd":1.0,"suggested_tasks":["Draft the requested content","Review the draft against the brief"]},
+]
 CAPABILITIES=[
  {"id":"research","name":"Research","description":"Collect sources and return a concise, cited brief.","permission":"read-only"},
  {"id":"code-review","name":"Code review","description":"Inspect a proposed change and report risks and test gaps.","permission":"read-only"},
@@ -17,9 +22,12 @@ def connect():
  db.executescript("""
  CREATE TABLE IF NOT EXISTS objectives(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL,budget REAL NOT NULL,status TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,approved_at TEXT);
  CREATE TABLE IF NOT EXISTS agents(id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT,description TEXT,capabilities TEXT,status TEXT DEFAULT 'registered');
- CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,objective_id TEXT NOT NULL,title TEXT NOT NULL,status TEXT NOT NULL,claimed_by TEXT,result TEXT,spent REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(objective_id) REFERENCES objectives(id));
+ CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,objective_id TEXT NOT NULL,title TEXT NOT NULL,status TEXT NOT NULL,claimed_by TEXT,assigned_agent_id TEXT,result TEXT,spent REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(objective_id) REFERENCES objectives(id));
  CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,entity_id TEXT NOT NULL,actor TEXT NOT NULL,detail TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
- """); return db
+ """);
+ columns={r[1] for r in db.execute("PRAGMA table_info(tasks)")}
+ if "assigned_agent_id" not in columns: db.execute("ALTER TABLE tasks ADD COLUMN assigned_agent_id TEXT")
+ return db
 
 def rowdict(row): return dict(row) if row else None
 def audit(db,action,entity,actor,detail=""): db.execute("INSERT INTO audit(action,entity_id,actor,detail) VALUES(?,?,?,?)",(action,entity,actor,detail))
@@ -69,6 +77,7 @@ class Handler(BaseHTTPRequestHandler):
   role=role_for(self.headers)
   if not role: return self.reply(401,{"error":"unauthorized"})
   if path=="/api/v1/capabilities": return self.reply(200,CAPABILITIES)
+  if path=="/api/v1/workflow-templates": return self.reply(200,WORKFLOW_TEMPLATES)
   with LOCK,connect() as db:
    if path=="/api/v1/objectives": return self.reply(200,[dict(x) for x in db.execute("SELECT * FROM objectives ORDER BY created_at DESC")])
    if path=="/api/v1/agents":
@@ -76,8 +85,11 @@ class Handler(BaseHTTPRequestHandler):
     for a in agents: a["capabilities"]=json.loads(a["capabilities"])
     return self.reply(200,agents)
    if path=="/api/v1/tasks":
-    q="SELECT * FROM tasks ORDER BY created_at DESC" if role=="admin" else "SELECT t.* FROM tasks t JOIN objectives o ON o.id=t.objective_id WHERE o.status='approved' AND t.status IN ('queued','running') ORDER BY t.created_at"
-    return self.reply(200,[dict(x) for x in db.execute(q)])
+    if role=="admin": rows=db.execute("SELECT * FROM tasks ORDER BY created_at DESC")
+    else:
+     agent_id=parse_qs(urlparse(self.path).query).get("agent_id",[""])[0]
+     rows=db.execute("SELECT t.* FROM tasks t JOIN objectives o ON o.id=t.objective_id WHERE o.status='approved' AND t.status='queued' AND (t.assigned_agent_id IS NULL OR t.assigned_agent_id=?) ORDER BY t.created_at",(agent_id,))
+    return self.reply(200,[dict(x) for x in rows])
    if path=="/api/v1/audit" and role=="admin": return self.reply(200,[dict(x) for x in db.execute("SELECT * FROM audit ORDER BY id DESC LIMIT 200")])
   return self.reply(403,{"error":"admin permission required"})
  def do_POST(self):
@@ -102,14 +114,15 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(201,item)
   if path=="/api/v1/tasks":
    if role!="admin": return self.reply(403,{"error":"only a human admin can create tasks"})
-   title=str(body.get("title","")).strip(); oid=body.get("objective_id")
+   title=str(body.get("title","")).strip(); oid=body.get("objective_id"); assigned=body.get("assigned_agent_id")
    if not title: return self.reply(422,{"error":"title required"})
    with LOCK,connect() as db:
     obj=db.execute("SELECT status FROM objectives WHERE id=?",(oid,)).fetchone()
     if not obj: return self.reply(404,{"error":"objective not found"})
     if obj["status"]!="approved": return self.reply(409,{"error":"objective must be human-approved before tasks can be queued"})
-    item={"id":str(uuid.uuid4()),"objective_id":oid,"title":title,"status":"queued","spent":0}
-    db.execute("INSERT INTO tasks(id,objective_id,title,status) VALUES(?,?,?,'queued')",(item["id"],oid,title)); audit(db,"task.queued",item["id"],role)
+    if assigned and not db.execute("SELECT 1 FROM agents WHERE id=?",(assigned,)).fetchone(): return self.reply(404,{"error":"assigned agent not found"})
+    item={"id":str(uuid.uuid4()),"objective_id":oid,"title":title,"status":"queued","spent":0,"assigned_agent_id":assigned}
+    db.execute("INSERT INTO tasks(id,objective_id,title,status,assigned_agent_id) VALUES(?,?,?,'queued',?)",(item["id"],oid,title,assigned)); audit(db,"task.queued",item["id"],role,json.dumps({"assigned_agent_id":assigned}))
    return self.reply(201,item)
   parts=path.strip("/").split("/")
   if len(parts)==5 and parts[:3]==["api","v1","tasks"] and parts[4]=="claim":
@@ -121,6 +134,7 @@ class Handler(BaseHTTPRequestHandler):
     if not task:return self.reply(404,{"error":"task not found"})
     if task["objective_status"]!="approved":return self.reply(409,{"error":"objective is not approved"})
     if task["status"]!="queued":return self.reply(409,{"error":"task is not available"})
+    if task["assigned_agent_id"] and task["assigned_agent_id"]!=agent_id:return self.reply(403,{"error":"task is assigned to another agent"})
     db.execute("UPDATE tasks SET status='running',claimed_by=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",(agent_id,tid)); audit(db,"task.claimed",tid,agent_id)
     task=dict(task); task.update(status="running",claimed_by=agent_id); return self.reply(200,task)
   return self.reply(404,{"error":"not found"})
