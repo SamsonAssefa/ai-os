@@ -31,5 +31,16 @@ class ApiTests(unittest.TestCase):
   self.assertEqual(self.request(f"/tasks/{task['id']}/claim",'POST',{'agent_id':agent['id']},'agent').code,200)
   self.assertEqual(self.request(f"/tasks/{task['id']}",'PATCH',{'agent_id':agent['id'],'status':'completed','result':'done','spent_usd':1.01},'agent').code,422)
   self.assertEqual(self.request(f"/tasks/{task['id']}",'PATCH',{'agent_id':agent['id'],'status':'completed','result':'done','spent_usd':.25},'agent').code,200)
+ def test_agent_assignment_limits_who_can_claim(self):
+  a1=json.load(self.request('/agents','POST',{'name':'Assigned agent'},'admin'))
+  a2=json.load(self.request('/agents','POST',{'name':'Other agent'},'admin'))
+  obj=json.load(self.request('/objectives','POST',{'title':'Assigned','budget_usd':1},'admin'))
+  self.request(f"/objectives/{obj['id']}/approve",'PATCH',{},'admin')
+  task=json.load(self.request('/tasks','POST',{'title':'Private route','objective_id':obj['id'],'assigned_agent_id':a1['id']},'admin'))
+  self.assertEqual(self.request(f"/tasks/{task['id']}/claim",'POST',{'agent_id':a2['id']},'agent').code,403)
+  self.assertEqual(self.request(f"/tasks/{task['id']}/claim",'POST',{'agent_id':a1['id']},'agent').code,200)
+ def test_workflow_templates_are_discoverable(self):
+  templates=json.load(self.request('/workflow-templates','GET',role='admin'))
+  self.assertIn('research-brief',[t['id'] for t in templates])
  def test_budget_cap(self): self.assertEqual(self.request('/objectives','POST',{'title':'Too much','budget_usd':5.01}).code,422)
 if __name__=='__main__': unittest.main()
