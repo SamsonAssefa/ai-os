@@ -78,10 +78,10 @@ class Handler(BaseHTTPRequestHandler):
   return {"id":key_id,"token":raw,"role":role,"workspace_id":workspace_id,"agent_id":agent_id,"scopes":scopes}
  def do_GET(self):
   path=urlparse(self.path).path
-  if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.6.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
+  if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.7.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
   if path in ("/.well-known/agent-card.json","/agent-card.json"):
    endpoint=(PUBLIC_URL+"/a2a") if PUBLIC_URL else "http://localhost:8000/a2a"
-   return self.reply(200,{"name":"AI OS","description":"Human-supervised workspace for interoperable AI agents.","url":endpoint,"version":"0.6.0","capabilities":{"streaming":False,"pushNotifications":False,"stateTransitionHistory":True},"skills":[{"id":"coordinate-approved-work","name":"Coordinate approved work","description":"Discover workflows and claim tasks only after human approval.","tags":["tasks","coordination","human-approval"]}],"securitySchemes":{"bearerAuth":{"type":"http","scheme":"bearer"}},"security":[{"bearerAuth":[]}]})
+   return self.reply(200,{"name":"AI OS","description":"Human-supervised workspace for interoperable AI agents.","url":endpoint,"version":"0.7.0","capabilities":{"streaming":False,"pushNotifications":False,"stateTransitionHistory":True},"skills":[{"id":"coordinate-approved-work","name":"Coordinate approved work","description":"Discover workflows and claim tasks only after human approval.","tags":["tasks","coordination","human-approval"]}],"securitySchemes":{"bearerAuth":{"type":"http","scheme":"bearer"}},"security":[{"bearerAuth":[]}]})
   if path in ("/robots.txt","/llms.txt","/sitemap.xml","/.well-known/ai-plugin.json"):
    if path=="/robots.txt":
     body="User-agent: *\nAllow: /\nDisallow: /api/\n"
@@ -174,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
    request_id=body.get("id"); method=body.get("method"); params=body.get("params",{})
    def mcp_result(result): return self.reply(200,{"jsonrpc":"2.0","id":request_id,"result":result})
    def mcp_error(code,message): return self.reply(200,{"jsonrpc":"2.0","id":request_id,"error":{"code":code,"message":message}})
-   if method=="initialize": return mcp_result({"protocolVersion":"2025-11-25","capabilities":{"tools":{"listChanged":False}},"serverInfo":{"name":"AI OS","version":"0.6.0"}})
+   if method=="initialize": return mcp_result({"protocolVersion":"2025-11-25","capabilities":{"tools":{"listChanged":False}},"serverInfo":{"name":"AI OS","version":"0.7.0"}})
    if method=="notifications/initialized": return self.reply(202,{})
    if method=="tools/list":
     return mcp_result({"tools":[{"name":"list_workflow_templates","description":"List safe workflow templates.","inputSchema":{"type":"object","properties":{}}},{"name":"list_tasks","description":"List tasks available in this workspace.","inputSchema":{"type":"object","properties":{}}},{"name":"propose_objective","description":"Create a proposed objective that still requires human approval.","inputSchema":{"type":"object","required":["title"],"properties":{"title":{"type":"string"},"description":{"type":"string"},"budget_usd":{"type":"number"}}}}]})

@@ -22,7 +22,7 @@ Open [http://localhost:8000](http://localhost:8000). Local development mode is i
 
 ## What is included
 
-- Black-and-white, customizable browser workspace for agents, objectives, task queues, activity, and appearance preferences.
+- Goal-centered AI workbench with template-based proposal preview, clear budget and permission boundaries, and human approval before work can run.
 - Workspace-scoped API keys with owner, admin, member, viewer, and agent roles. Agent keys can be bound to a registered agent and are shown only once. The UI displays workspace usage and offers role-aware task controls.
 - Approval-gated objectives, task assignment, spending reservations, budget enforcement, deadlines, dependencies, retries, cancellation requests, and task event history.
 - Human-readable API docs and OpenAPI 3.1 schema; MCP tool endpoint and A2A agent card / objective proposal profile.

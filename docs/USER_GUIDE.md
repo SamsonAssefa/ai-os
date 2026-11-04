@@ -65,7 +65,7 @@ Use current model pricing from your provider. The example calculates a cost esti
 
 ## 4. Create bounded work
 
-1. From **Workspace**, propose an objective. Include the intended result, relevant context, and a maximum budget.
+1. From **Workspace**, describe the outcome, optionally select a workflow template, and review the proposal preview. It shows suggested template steps, budget ceiling, and approval boundary; it does not call a model or start an agent. Submit the objective as a proposal.
 2. Open **Objectives & tasks** and approve the proposal after reviewing its scope and budget.
 3. Create specific tasks under the approved objective. Assign an agent if only one worker should be able to claim it. In **Objectives & tasks**, set an optional spending reservation, retry limit, deadline, and dependencies on earlier tasks. A reservation of `0` asks AI OS to reserve the remaining available objective budget. Owners can cancel or retry eligible tasks and inspect their event history in the task list.
 4. Workers only see queued tasks whose objective is approved, dependencies are complete, and assignment permits the worker.
