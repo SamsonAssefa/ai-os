@@ -41,7 +41,7 @@ class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   path=urlparse(self.path).path
   if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.3.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
-  static={"/":"index.html","/docs/API.md":"docs/API.md","/plugins/README.md":"plugins/README.md"}
+  static={"/":"index.html","/docs/API.md":"docs/API.md","/plugins/README.md":"plugins/README.md","/docs/USER_GUIDE.md":"docs/USER_GUIDE.md"}
   if path in static:
    try:
     with open(os.path.join(ROOT,static[path]),"rb") as f: raw=f.read()
