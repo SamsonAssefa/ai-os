@@ -1,27 +1,31 @@
 # AI OS API v1
 
-The same JSON API serves the web workspace and agents in any language. Base URL: `http://localhost:8000/api/v1`.
+AI OS coordinates external agents over JSON. Base URL: `http://localhost:8000/api/v1`.
 
-Set `AIOS_API_TOKEN` on the server to require `Authorization: Bearer <token>`. Unset means open local development access. Never embed a server token in a public client. Set `AIOS_MAX_BUDGET_USD` to change the per-objective ceiling (default $5).
+## Credentials and roles
 
-- `GET /health` — service version and whether authentication is enabled.
-- `GET /capabilities` — available starter capability catalog.
-- `GET|POST /agents` — list or register `{ "name": "Researcher", "kind": "custom", "description": "...", "capabilities": ["research"] }`.
-- `GET|POST /objectives` — list or propose `{ "title": "...", "description": "...", "budget_usd": 1.25 }`. Returns 201; status is `proposed` and approval is required.
-- `GET|POST /tasks` — list or queue `{ "objective_id": "...", "title": "..." }`.
-- `PATCH /tasks/{id}` — report `{ "status": "running|completed|failed", "result": "..." }`.
-- `GET /audit` — in-memory event feed.
+Set `AIOS_ADMIN_TOKEN` for the human workspace and `AIOS_AGENT_TOKEN` for workers. Admins can propose/approve objectives, register agents, and queue work. Agents can register, view eligible tasks, claim a task, and report results. Keep tokens in environment variables. When neither token is configured, local development mode is open; agents identify themselves with `X-AI-OS-Role: agent`. Never expose open mode to a network you do not trust.
 
-Errors use `{ "error": "..." }`. Invalid JSON returns 400, invalid fields 422, missing auth 401, unknown IDs 404. Responses are JSON. Data resets when the server restarts.
+Set `AIOS_MAX_BUDGET_USD` for the maximum objective budget (default `$5`). State is stored in `aios.sqlite3`; set `AIOS_DB_PATH` to choose the database path.
+
+- `GET /health` — service health/version.
+- `GET /capabilities` — starter capability catalog.
+- `GET|POST /agents` — list/register `{ "name": "Researcher", "kind": "custom", "capabilities": ["research"] }`.
+- `GET|POST /objectives` — list/propose `{ "title": "...", "description": "...", "budget_usd": 1.25 }`.
+- `PATCH /objectives/{id}/approve` — human admin approves a proposal.
+- `GET|POST /tasks` — admins list tasks or queue `{ "objective_id": "...", "title": "..." }`. Task creation requires an approved objective.
+- `POST /tasks/{id}/claim` — agent claims a queued task using `{ "agent_id": "..." }`.
+- `PATCH /tasks/{id}` — claimed agent reports `{ "agent_id": "...", "status": "completed|failed", "result": "...", "spent_usd": 0.12 }`. Cumulative reported spend cannot exceed the objective budget.
+- `GET /audit` — human admin audit trail.
+
+Errors use `{ "error": "..." }`. Invalid JSON returns 400, invalid fields 422, missing auth 401, unknown IDs 404, and unapproved/claimed state conflicts 409.
+
+## Run a worker
+
+Start the server with `AIOS_ADMIN_TOKEN` and `AIOS_AGENT_TOKEN`. Register an agent in the UI, copy its ID, and run:
 
 ```sh
-# Start the local workspace
-AIOS_API_TOKEN=local-demo-token python3 server.py
-
-# Register an agent
-curl -H 'Authorization: Bearer local-demo-token' -H 'Content-Type: application/json' \
-  -d '{"name":"My agent","kind":"custom","capabilities":["research"]}' \
-  http://localhost:8000/api/v1/agents
+AIOS_URL=http://localhost:8000/api/v1 AIOS_AGENT_TOKEN=... AIOS_AGENT_ID=... python3 examples/agent.py
 ```
 
-This MVP coordinates proposals and task reports. It does not execute agents, store durable data, provide per-user identities, or safely host third-party plugins. See `../plugins/README.md` for the adapter boundary.
+The example worker is a safe adapter skeleton. Add your model/tool call to `process_task(task)` and return `(result_text, measured_spend_usd)`. The worker does not fake successful output. See `../plugins/README.md` for extension rules.
