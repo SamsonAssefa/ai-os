@@ -1,89 +1,139 @@
-"""AI OS: local control plane for registering agents and safely coordinating work."""
+"""AI OS MVP: approval-gated, budget-aware agent task coordinator."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
-import json, os, secrets, threading, uuid
+import json, os, secrets, sqlite3, threading, uuid
 
-STORE = {"objectives": {}, "tasks": {}, "agents": {}, "audit": []}
-LOCK = threading.Lock()
-TOKEN = os.getenv("AIOS_API_TOKEN", "")
-MAX_BUDGET = float(os.getenv("AIOS_MAX_BUDGET_USD", "5.00"))
-CAPABILITIES = [
- {"id":"research", "name":"Research", "description":"Collect sources and return a concise, cited brief.", "permission":"read-only"},
- {"id":"code-review", "name":"Code review", "description":"Inspect a proposed change and report risks and test gaps.", "permission":"read-only"},
- {"id":"content", "name":"Content drafting", "description":"Create drafts for a human to review.", "permission":"draft-only"},
- {"id":"workflow", "name":"Workflow planning", "description":"Break an objective into proposed, reviewable tasks.", "permission":"approval-required"},
-]
+ROOT=os.path.dirname(__file__); DB=os.getenv("AIOS_DB_PATH",os.path.join(ROOT,"aios.sqlite3"))
+ADMIN_TOKEN=os.getenv("AIOS_ADMIN_TOKEN",""); AGENT_TOKEN=os.getenv("AIOS_AGENT_TOKEN","")
+MAX_BUDGET=float(os.getenv("AIOS_MAX_BUDGET_USD","5.00")); LOCK=threading.RLock()
+CAPABILITIES=[
+ {"id":"research","name":"Research","description":"Collect sources and return a concise, cited brief.","permission":"read-only"},
+ {"id":"code-review","name":"Code review","description":"Inspect a proposed change and report risks and test gaps.","permission":"read-only"},
+ {"id":"content","name":"Content drafting","description":"Create drafts for a human to review.","permission":"draft-only"},
+ {"id":"workflow","name":"Workflow planning","description":"Break an objective into proposed, reviewable tasks.","permission":"approval-required"},]
 
-def audit(action, obj_id): STORE["audit"].append({"action":action,"id":obj_id})
+def connect():
+ db=sqlite3.connect(DB,timeout=10); db.row_factory=sqlite3.Row; db.execute("PRAGMA journal_mode=WAL")
+ db.executescript("""
+ CREATE TABLE IF NOT EXISTS objectives(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL,budget REAL NOT NULL,status TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,approved_at TEXT);
+ CREATE TABLE IF NOT EXISTS agents(id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT,description TEXT,capabilities TEXT,status TEXT DEFAULT 'registered');
+ CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,objective_id TEXT NOT NULL,title TEXT NOT NULL,status TEXT NOT NULL,claimed_by TEXT,result TEXT,spent REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(objective_id) REFERENCES objectives(id));
+ CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,entity_id TEXT NOT NULL,actor TEXT NOT NULL,detail TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+ """); return db
+
+def rowdict(row): return dict(row) if row else None
+def audit(db,action,entity,actor,detail=""): db.execute("INSERT INTO audit(action,entity_id,actor,detail) VALUES(?,?,?,?)",(action,entity,actor,detail))
+def role_for(headers):
+ token=headers.get("Authorization","")
+ if not ADMIN_TOKEN and not AGENT_TOKEN: return "agent" if headers.get("X-AI-OS-Role")=="agent" else "admin"  # local development only
+ if ADMIN_TOKEN and secrets.compare_digest(token,"Bearer "+ADMIN_TOKEN): return "admin"
+ if AGENT_TOKEN and secrets.compare_digest(token,"Bearer "+AGENT_TOKEN): return "agent"
+ return ""
 
 class Handler(BaseHTTPRequestHandler):
- def reply(self, status, data):
-  raw=json.dumps(data).encode(); self.send_response(status); self.send_header("Content-Type","application/json")
-  self.send_header("Content-Length",str(len(raw))); self.send_header("Access-Control-Allow-Origin","*"); self.end_headers(); self.wfile.write(raw)
+ def reply(self,status,data):
+  raw=json.dumps(data).encode(); self.send_response(status); self.send_header("Content-Type","application/json"); self.send_header("Content-Length",str(len(raw))); self.send_header("Access-Control-Allow-Origin","*"); self.end_headers(); self.wfile.write(raw)
  def do_OPTIONS(self):
-  self.send_response(204); self.send_header("Access-Control-Allow-Origin","*"); self.send_header("Access-Control-Allow-Headers","Authorization,Content-Type")
-  self.send_header("Access-Control-Allow-Methods","GET,POST,PATCH,OPTIONS"); self.end_headers()
- def authorized(self): return not TOKEN or secrets.compare_digest(self.headers.get("Authorization",""),"Bearer "+TOKEN)
+  self.send_response(204); self.send_header("Access-Control-Allow-Origin","*"); self.send_header("Access-Control-Allow-Headers","Authorization,Content-Type"); self.send_header("Access-Control-Allow-Methods","GET,POST,PATCH,OPTIONS"); self.end_headers()
  def body(self):
   try: return json.loads(self.rfile.read(int(self.headers.get("Content-Length","0"))))
   except Exception: return None
  def do_GET(self):
   path=urlparse(self.path).path
-  if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.2.0","auth_required":bool(TOKEN)})
-  if not self.authorized(): return self.reply(401,{"error":"unauthorized"})
+  if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.3.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
   static={"/":"index.html","/docs/API.md":"docs/API.md","/plugins/README.md":"plugins/README.md"}
   if path in static:
-   filename=static[path]
    try:
-    with open(os.path.join(os.path.dirname(__file__),filename),"rb") as f: raw=f.read()
-    self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8" if filename.endswith(".html") else "text/plain; charset=utf-8"); self.send_header("Content-Length",str(len(raw))); self.end_headers(); self.wfile.write(raw); return
+    with open(os.path.join(ROOT,static[path]),"rb") as f: raw=f.read()
+    self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8" if path=="/" else "text/plain; charset=utf-8"); self.send_header("Content-Length",str(len(raw))); self.end_headers(); self.wfile.write(raw); return
    except OSError: return self.reply(404,{"error":"not found"})
-  with LOCK:
-   routes={"/api/v1/objectives":list(STORE["objectives"].values()),"/api/v1/tasks":list(STORE["tasks"].values()),"/api/v1/agents":list(STORE["agents"].values()),"/api/v1/capabilities":CAPABILITIES,"/api/v1/audit":STORE["audit"]}
-   if path in routes: return self.reply(200,routes[path])
-  return self.reply(404,{"error":"not found"})
+  role=role_for(self.headers)
+  if not role: return self.reply(401,{"error":"unauthorized"})
+  if path=="/api/v1/capabilities": return self.reply(200,CAPABILITIES)
+  with LOCK,connect() as db:
+   if path=="/api/v1/objectives": return self.reply(200,[dict(x) for x in db.execute("SELECT * FROM objectives ORDER BY created_at DESC")])
+   if path=="/api/v1/agents":
+    agents=[dict(x) for x in db.execute("SELECT * FROM agents ORDER BY name")]
+    for a in agents: a["capabilities"]=json.loads(a["capabilities"])
+    return self.reply(200,agents)
+   if path=="/api/v1/tasks":
+    q="SELECT * FROM tasks ORDER BY created_at DESC" if role=="admin" else "SELECT t.* FROM tasks t JOIN objectives o ON o.id=t.objective_id WHERE o.status='approved' AND t.status IN ('queued','running') ORDER BY t.created_at"
+    return self.reply(200,[dict(x) for x in db.execute(q)])
+   if path=="/api/v1/audit" and role=="admin": return self.reply(200,[dict(x) for x in db.execute("SELECT * FROM audit ORDER BY id DESC LIMIT 200")])
+  return self.reply(403,{"error":"admin permission required"})
  def do_POST(self):
-  if not self.authorized(): return self.reply(401,{"error":"unauthorized"})
+  role=role_for(self.headers)
+  if not role: return self.reply(401,{"error":"unauthorized"})
   body=self.body()
   if body is None: return self.reply(400,{"error":"invalid JSON"})
   path=urlparse(self.path).path
   if path=="/api/v1/agents":
-   name=str(body.get("name","")).strip(); kind=str(body.get("kind","custom")).strip()
+   name=str(body.get("name","")).strip()
    if not name or len(name)>100: return self.reply(422,{"error":"name required (1-100 characters)"})
-   item={"id":str(uuid.uuid4()),"name":name,"kind":kind[:40],"description":str(body.get("description",""))[:500],"capabilities":body.get("capabilities",[]),"status":"registered"}
-   with LOCK: STORE["agents"][item["id"]]=item; audit("agent.registered",item["id"])
+   item={"id":str(uuid.uuid4()),"name":name,"kind":str(body.get("kind","custom"))[:40],"description":str(body.get("description",""))[:500],"capabilities":body.get("capabilities",[]),"status":"registered"}
+   with LOCK,connect() as db: db.execute("INSERT INTO agents(id,name,kind,description,capabilities) VALUES(?,?,?,?,?)",(item["id"],item["name"],item["kind"],item["description"],json.dumps(item["capabilities"]))); audit(db,"agent.registered",item["id"],role)
    return self.reply(201,item)
   if path=="/api/v1/objectives":
+   if role!="admin": return self.reply(403,{"error":"only a human admin can propose objectives"})
    title=str(body.get("title","")).strip(); budget=body.get("budget_usd",0)
    if not title or len(title)>240: return self.reply(422,{"error":"title required (1-240 characters)"})
-   if not isinstance(budget,(float,int)) or budget<0 or budget>MAX_BUDGET: return self.reply(422,{"error":f"budget must be between 0 and {MAX_BUDGET:.2f} USD"})
-   item={"id":str(uuid.uuid4()),"title":title,"description":str(body.get("description",""))[:4000],"budget_usd":float(budget),"status":"proposed","approval_required":True}
-   with LOCK: STORE["objectives"][item["id"]]=item; audit("objective.proposed",item["id"])
+   if not isinstance(budget,(int,float)) or budget<0 or budget>MAX_BUDGET: return self.reply(422,{"error":f"budget must be between 0 and {MAX_BUDGET:.2f} USD"})
+   item={"id":str(uuid.uuid4()),"title":title,"description":str(body.get("description",""))[:4000],"budget":float(budget),"status":"proposed","approval_required":True}
+   with LOCK,connect() as db: db.execute("INSERT INTO objectives(id,title,description,budget,status) VALUES(?,?,?,?,?)",(item["id"],item["title"],item["description"],item["budget"],item["status"])); audit(db,"objective.proposed",item["id"],role)
    return self.reply(201,item)
   if path=="/api/v1/tasks":
-   oid=body.get("objective_id"); title=str(body.get("title","")).strip()
+   if role!="admin": return self.reply(403,{"error":"only a human admin can create tasks"})
+   title=str(body.get("title","")).strip(); oid=body.get("objective_id")
    if not title: return self.reply(422,{"error":"title required"})
-   with LOCK:
-    if oid not in STORE["objectives"]: return self.reply(404,{"error":"objective not found"})
-    item={"id":str(uuid.uuid4()),"objective_id":oid,"title":title,"status":"queued","result":None}
-    STORE["tasks"][item["id"]]=item; audit("task.queued",item["id"])
+   with LOCK,connect() as db:
+    obj=db.execute("SELECT status FROM objectives WHERE id=?",(oid,)).fetchone()
+    if not obj: return self.reply(404,{"error":"objective not found"})
+    if obj["status"]!="approved": return self.reply(409,{"error":"objective must be human-approved before tasks can be queued"})
+    item={"id":str(uuid.uuid4()),"objective_id":oid,"title":title,"status":"queued","spent":0}
+    db.execute("INSERT INTO tasks(id,objective_id,title,status) VALUES(?,?,?,'queued')",(item["id"],oid,title)); audit(db,"task.queued",item["id"],role)
    return self.reply(201,item)
+  parts=path.strip("/").split("/")
+  if len(parts)==5 and parts[:3]==["api","v1","tasks"] and parts[4]=="claim":
+   if role!="agent": return self.reply(403,{"error":"agent credential required"})
+   tid=parts[3]; agent_id=str(body.get("agent_id",""))
+   with LOCK,connect() as db:
+    agent=db.execute("SELECT id FROM agents WHERE id=?",(agent_id,)).fetchone(); task=db.execute("SELECT t.*,o.status AS objective_status,o.budget AS budget FROM tasks t JOIN objectives o ON o.id=t.objective_id WHERE t.id=?",(tid,)).fetchone()
+    if not agent:return self.reply(404,{"error":"agent not found"})
+    if not task:return self.reply(404,{"error":"task not found"})
+    if task["objective_status"]!="approved":return self.reply(409,{"error":"objective is not approved"})
+    if task["status"]!="queued":return self.reply(409,{"error":"task is not available"})
+    db.execute("UPDATE tasks SET status='running',claimed_by=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",(agent_id,tid)); audit(db,"task.claimed",tid,agent_id)
+    task=dict(task); task.update(status="running",claimed_by=agent_id); return self.reply(200,task)
   return self.reply(404,{"error":"not found"})
  def do_PATCH(self):
-  if not self.authorized(): return self.reply(401,{"error":"unauthorized"})
+  role=role_for(self.headers)
+  if not role:return self.reply(401,{"error":"unauthorized"})
   path=urlparse(self.path).path; parts=path.strip("/").split("/"); body=self.body()
-  if body is None: return self.reply(400,{"error":"invalid JSON"})
-  if len(parts)!=4 or parts[:2]!=["api","v1"]: return self.reply(404,{"error":"not found"})
-  collection,item_id=parts[2],parts[3]
-  with LOCK:
-   if collection=="tasks" and item_id in STORE["tasks"]:
-    status=body.get("status"); result=str(body.get("result",""))[:4000]
-    if status not in ("running","completed","failed"): return self.reply(422,{"error":"status must be running, completed, or failed"})
-    task=STORE["tasks"][item_id]; task.update(status=status,result=result); audit("task."+status,item_id); return self.reply(200,task)
-   if collection=="agents" and item_id in STORE["agents"]:
-    STORE["agents"][item_id]["status"]="active" if body.get("status")=="active" else "registered"; return self.reply(200,STORE["agents"][item_id])
-  return self.reply(404,{"error":"item not found"})
- def log_message(self,*_): pass
-
+  if body is None:return self.reply(400,{"error":"invalid JSON"})
+  if len(parts)==5 and parts[:3]==["api","v1","objectives"] and parts[4]=="approve":
+   if role!="admin":return self.reply(403,{"error":"human admin approval required"})
+   oid=parts[3]
+   with LOCK,connect() as db:
+    obj=db.execute("SELECT * FROM objectives WHERE id=?",(oid,)).fetchone()
+    if not obj:return self.reply(404,{"error":"objective not found"})
+    if obj["status"]!="proposed":return self.reply(409,{"error":"objective is not awaiting approval"})
+    db.execute("UPDATE objectives SET status='approved',approved_at=CURRENT_TIMESTAMP WHERE id=?",(oid,)); audit(db,"objective.approved",oid,"human-admin")
+    return self.reply(200,{**dict(obj),"status":"approved"})
+  if len(parts)==4 and parts[:3]==["api","v1","tasks"]:
+   if role!="agent":return self.reply(403,{"error":"agent credential required to report results"})
+   tid=parts[3]; status=body.get("status"); result=str(body.get("result",""))[:4000]; spent=body.get("spent_usd",0); agent_id=body.get("agent_id")
+   if status not in ("completed","failed"):return self.reply(422,{"error":"status must be completed or failed"})
+   if not isinstance(spent,(int,float)) or spent<0:return self.reply(422,{"error":"spent_usd must be a non-negative number"})
+   with LOCK,connect() as db:
+    row=db.execute("SELECT t.*,o.budget,o.status AS objective_status,(SELECT COALESCE(SUM(spent),0) FROM tasks WHERE objective_id=o.id) AS spent_total FROM tasks t JOIN objectives o ON o.id=t.objective_id WHERE t.id=?",(tid,)).fetchone()
+    if not row:return self.reply(404,{"error":"task not found"})
+    if row["claimed_by"]!=agent_id or not agent_id:return self.reply(403,{"error":"task is claimed by a different agent"})
+    if row["objective_status"]!="approved":return self.reply(409,{"error":"objective is not approved"})
+    if row["status"]!="running":return self.reply(409,{"error":"task is not running"})
+    if row["spent_total"]+spent>row["budget"]:return self.reply(422,{"error":"reported spend would exceed objective budget"})
+    db.execute("UPDATE tasks SET status=?,result=?,spent=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",(status,result,float(spent),tid)); audit(db,"task."+status,tid,agent_id,json.dumps({"spent_usd":spent}))
+    return self.reply(200,{"id":tid,"status":status,"result":result,"spent_usd":spent})
+  return self.reply(404,{"error":"not found"})
+ def log_message(self,*_):pass
 if __name__=="__main__":
  port=int(os.getenv("PORT","8000")); print(f"AI OS listening on http://127.0.0.1:{port}"); ThreadingHTTPServer(("0.0.0.0",port),Handler).serve_forever()
