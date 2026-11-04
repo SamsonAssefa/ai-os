@@ -1,6 +1,8 @@
 # AI and search discovery
 
-AI OS provides readable project documentation, descriptive HTML metadata, SoftwareApplication structured data, `llms.txt`, a robots policy, a sitemap route, an OpenAPI 3.1 schema, MCP tools, and an A2A discovery card. These entry points help people and agents learn what the project supports; they do not grant API access.
+AI OS is working toward an open foundation for AI-first computing, where agents are first-class users and people retain control of identity, data, permissions, spending, and consequential actions. The current release is an early self-hosted coordination workspace, not a desktop OS. See the [north star and roadmap](PRODUCT_ROADMAP.md) for the staged path toward an AI-native workspace and a possible standalone Linux-based distribution.
+
+AI OS also provides readable project documentation, descriptive HTML metadata, SoftwareApplication structured data, `llms.txt`, a robots policy, a sitemap route, an OpenAPI 3.1 schema, MCP tools, and an A2A discovery card. These entry points help people and agents learn what the project supports; they do not grant API access.
 
 ## Local and hosted behavior
 

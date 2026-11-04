@@ -1,6 +1,10 @@
 # Product roadmap
 
-AI OS is an open, self-hosted workspace for coordinating AI agents with people in control of scope and consequential actions. The goal is to make connections, permissions, and work portable across providers and frameworks.
+## North star: an open foundation for AI-first computing
+
+AI OS aims to become a user-owned computing platform where people and AI agents work together, with agents treated as first-class users of the system. Over time it should provide the shared foundations for identity, context, tools, apps, files, permissions, and reliable execution, so an AI-native environment can stand on its own instead of relying on Windows or macOS as its primary interface.
+
+The current product is an early self-hosted coordination workspace. It is not a desktop operating system yet. The intended path is to make the open agent workspace reliable first, grow it into an AI-native desktop experience that can run alongside existing systems, then explore an optional standalone Linux-based distribution. The system should stay model-neutral and portable, with people controlling data, access, spending, and external actions.
 
 ## Available in v0.6.0
 
@@ -21,9 +25,19 @@ AI OS is an open, self-hosted workspace for coordinating AI agents with people i
 5. **Portable workflows:** versioned workflow packages with reproducible inputs, permission manifests, compatibility checks, and migration support.
 6. **Production readiness:** threat model, independent security review, performance testing, deployment guidance, and supported upgrade paths.
 
+## Longer-term stages
+
+1. **Trusted agent foundation:** durable jobs, identity, scoped capabilities, policy enforcement, private context, and recoverable execution.
+2. **AI-native workspace:** a human-friendly desktop shell for directing agents, reviewing their work, and connecting files, apps, and services through portable adapters.
+3. **Standalone option:** investigate a bootable Linux-based AI OS distribution, with clear upgrade paths and support for running existing desktop applications where practical.
+
+These stages are goals, not shipped features or date commitments. Each depends on reliability, security review, user testing, and a healthy connector ecosystem. AI OS should integrate with existing platforms before it tries to replace them.
+
 ## Product principles
 
 - Let agents built by different providers and frameworks interoperate.
+- Make the core model-neutral and the user's data, identity, preferences, and policies portable.
+- Treat AI agents as first-class system users while giving each one visible, limited permissions.
 - Let users export their data and move between self-hosted and managed options.
 - Show permissions, budgets, and pending approvals before work begins.
 - Keep consequential actions behind clear human review.

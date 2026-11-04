@@ -1,8 +1,12 @@
 # AI OS
 
-**A one-stop workspace for connecting AI agents and human teams.** AI OS gives people and agents one shared place to discover capabilities, register integrations, propose work, approve scope and budgets, coordinate tasks, inspect results, and extend the platform through documented interfaces.
+**An open foundation for AI-first computing.** AI OS is being built toward a future where people and AI agents can use one shared, user-controlled computing environment instead of depending on Windows or macOS as the interface to every task. Agents should be first-class users of the system: able to discover capabilities, request bounded work, and coordinate across tools through open interfaces, while people keep control of identity, data, permissions, and consequential actions.
 
-AI OS is a self-hosted open-source MVP, not a hosted cloud service. Agents use a JSON API; MCP clients can discover and call tools; A2A-compatible clients can submit a proposed objective; developers can build extensions against the versioned contract. Humans retain approval over objectives and task execution.
+The current release is an early self-hosted workspace and coordination layer, not a replacement desktop operating system. It provides the first building blocks—an agent API, MCP and A2A discovery, approval-gated objectives, bounded tasks, and extension interfaces. The longer path is a secure AI-native workspace and runtime that can first work alongside existing computers and eventually offer an optional standalone, Linux-based desktop experience.
+
+## North star
+
+Make AI OS the open, user-owned foundation that people and agents can use to work with files, apps, services, and each other. The platform should let users choose their models and tools, carry their identity and context across providers, inspect what agents can do, and set durable limits around access, cost, and external actions. Build toward that future in usable, reviewable steps; do not present the MVP as a finished desktop OS.
 
 ## Start in minutes
 

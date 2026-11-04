@@ -1,6 +1,6 @@
 # AI OS
 
-> An open-source, self-hosted hub where people and AI agents discover integrations, propose work, approve bounded objectives, coordinate tasks, review results, and extend the platform.
+> An open-source foundation for AI-first computing. The long-term goal is a user-owned environment where people and AI agents work together, potentially including a standalone Linux-based desktop; the current release is an early self-hosted coordination workspace, not a desktop operating system.
 
 AI OS connects external agent workers through a workspace API, MCP tools, an A2A discovery card, and reviewed extension metadata. Objectives begin as proposals and require human approval before tasks can be queued or claimed. Workspace credentials isolate data; task reservations and spend limits provide cost guardrails. The browser operations view includes live usage totals, deadline/dependency controls, task recovery, and event history. AI OS does not bundle a model provider or claim to validate provider invoices.
 
