@@ -17,7 +17,11 @@ For local use, you may leave credentials unset. To separate human and agent acce
 5. Connect an agent worker. It claims eligible tasks and reports a result and measured spend.
 6. AI OS rejects reports that would exceed the approved objective budget and records state changes in the audit log.
 
-Start with the [user manual](docs/USER_GUIDE.md). See [API docs](docs/API.md) and the [`examples/agent.py`](examples/agent.py) adapter skeleton. The example calls OpenAI using a key kept in the worker environment, then reports the model response and token-based cost. Configure its model and current pricing rates as described in the API docs.
+Start with the [user manual](docs/USER_GUIDE.md). AI and search discovery files are documented in [AI_DISCOVERY.md](docs/AI_DISCOVERY.md); see the [OpenAPI schema](openapi.yaml), [API docs](docs/API.md), and the [`examples/agent.py`](examples/agent.py) adapter skeleton. The example calls OpenAI using a key kept in the worker environment, then reports the model response and token-based cost. Configure its model and current pricing rates as described in the API docs.
+
+## AI and search discovery
+
+The project includes crawler-readable `llms.txt`, `robots.txt`, structured app metadata, a generated sitemap, and an OpenAPI schema. Public crawlers cannot index localhost. For website discovery, host the app on a public HTTPS domain and set `AIOS_PUBLIC_URL`; read [AI and search discovery](docs/AI_DISCOVERY.md).
 
 ## Included
 
