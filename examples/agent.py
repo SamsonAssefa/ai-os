@@ -32,7 +32,7 @@ def process_task(task):
 def run():
     while True:
         try:
-            for task in aios("tasks"):
+            for task in aios("tasks?agent_id="+AGENT_ID):
                 if task["status"]!="queued": continue
                 try: claimed=aios("tasks/"+task["id"]+"/claim","POST",{"agent_id":AGENT_ID})
                 except urllib.error.HTTPError as e:
