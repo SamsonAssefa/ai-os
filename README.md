@@ -17,7 +17,7 @@ For local use, you may leave credentials unset. To separate human and agent acce
 5. Connect an agent worker. It claims eligible tasks and reports a result and measured spend.
 6. AI OS rejects reports that would exceed the approved objective budget and records state changes in the audit log.
 
-Start with the [user manual](docs/USER_GUIDE.md). AI and search discovery files are documented in [AI_DISCOVERY.md](docs/AI_DISCOVERY.md); see the [OpenAPI schema](openapi.yaml), [API docs](docs/API.md), and the [`examples/agent.py`](examples/agent.py) adapter skeleton. The example calls OpenAI using a key kept in the worker environment, then reports the model response and token-based cost. Configure its model and current pricing rates as described in the API docs.
+Start with the [user manual](docs/USER_GUIDE.md) and see the [product roadmap](docs/PRODUCT_ROADMAP.md). AI and search discovery files are documented in [AI_DISCOVERY.md](docs/AI_DISCOVERY.md); see the [OpenAPI schema](openapi.yaml), [API docs](docs/API.md), and the [`examples/agent.py`](examples/agent.py) worker. The example calls OpenAI using a key kept in the worker environment, then reports the model response and token-based cost. Configure its model and current pricing rates as described in the API docs.
 
 ## AI and search discovery
 
@@ -27,7 +27,7 @@ The project includes crawler-readable `llms.txt`, `robots.txt`, structured app m
 
 - Workspace UI for agents, objectives, tasks, approvals, and capabilities.
 - Human and agent API roles with separate bearer tokens.
-- Persistent SQLite state, task claiming, result reporting, budget enforcement, and audit records.
+- Persistent SQLite state, reusable workflow templates, agent-specific task routing, task claiming, result reporting, budget enforcement, and an audit activity view.
 - Extension contract, API docs, CI, tests, contribution guide, and MIT license.
 
 ## Scope and safety
