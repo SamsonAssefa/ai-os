@@ -126,7 +126,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/api/v1/health": return self.reply(200,{"status":"ok","version":"0.10.0","auth_required":bool(ADMIN_TOKEN or AGENT_TOKEN)})
   if path in ("/.well-known/agent-card.json","/agent-card.json"):
    endpoint=(PUBLIC_URL+"/a2a") if PUBLIC_URL else "http://localhost:8000/a2a"
-   return self.reply(200,{"name":"AI OS","description":"Human-supervised workspace for interoperable AI agents.","url":endpoint,"version":"0.10.0","capabilities":{"streaming":False,"pushNotifications":False,"stateTransitionHistory":True},"skills":[{"id":"coordinate-approved-work","name":"Coordinate approved work","description":"Discover workflows and claim tasks only after human approval.","tags":["tasks","coordination","human-approval"]}],"securitySchemes":{"bearerAuth":{"type":"http","scheme":"bearer"}},"security":[{"bearerAuth":[]}]})
+   return self.reply(200,{"name":"AI OS","description":"Human-supervised workspace for interoperable AI agents.","url":endpoint,"version":"0.10.0","protocolVersion":"1.0","supportedInterfaces":[{"url":endpoint,"protocolBinding":"JSONRPC","protocolVersion":"1.0"}],"defaultInputModes":["text/plain"],"defaultOutputModes":["application/json","text/plain"],"capabilities":{"streaming":False,"pushNotifications":False,"stateTransitionHistory":True},"skills":[{"id":"coordinate-approved-work","name":"Coordinate approved work","description":"Discover workflows, propose bounded work, and claim eligible tasks after human approval.","tags":["tasks","coordination","human-approval"],"examples":["Propose a bounded objective for human approval.","Find eligible tasks in this workspace."],"inputModes":["text/plain"],"outputModes":["application/json","text/plain"]}],"securitySchemes":{"bearerAuth":{"type":"http","scheme":"bearer","bearerFormat":"AI OS API key"}},"security":[{"bearerAuth":[]}]})
   if path in ("/robots.txt","/llms.txt","/sitemap.xml","/.well-known/ai-plugin.json"):
    if path=="/robots.txt":
     body="User-agent: *\nAllow: /\nDisallow: /api/\n"
@@ -292,15 +292,22 @@ class Handler(BaseHTTPRequestHandler):
    return mcp_error(-32602,"Unknown tool")
   if path=="/a2a":
    request_id=body.get("id"); method=body.get("method"); params=body.get("params",{})
-   if method not in ("message/send","SendMessage"):return self.reply(400,{"error":"supported A2A method: message/send"})
-   if role not in ("admin","owner","member","agent"):return self.reply(403,{"error":"authenticated workspace credential required to propose an objective"})
-   message=params.get("message",{}); parts=message.get("parts",[]); prompt="\n".join(str(p.get("text","")) for p in parts if p.get("type","text")=="text").strip()
-   if not prompt:return self.reply(422,{"error":"message must include a text part"})
+   def a2a_error(code,message,http_status=200):
+    return self.reply(http_status,{"jsonrpc":"2.0","id":request_id,"error":{"code":code,"message":message}})
+   if body.get("jsonrpc")!="2.0" or request_id is None or not isinstance(params,dict):return a2a_error(-32600,"Invalid Request")
+   if method not in ("message/send","SendMessage"):return a2a_error(-32601,"Method not found")
+   if role not in ("admin","owner","member","agent"):return a2a_error(-32003,"Authenticated workspace credential required to propose an objective",403)
+   message=params.get("message",{}); parts=message.get("parts",[]) if isinstance(message,dict) else []
+   prompt="\n".join(str(p.get("text","")) for p in parts if isinstance(p,dict) and (p.get("kind")=="text" or p.get("type")=="text" or "text" in p)).strip() if isinstance(parts,list) else ""
+   if not prompt:return a2a_error(-32602,"message.parts must include a text part",422)
    title=prompt[:240]; budget=params.get("budget_usd",0)
-   if not isinstance(budget,(int,float)) or budget<0 or budget>MAX_BUDGET:return self.reply(422,{"error":f"budget_usd must be between 0 and {MAX_BUDGET:.2f}"})
+   if not isinstance(budget,(int,float)) or not math.isfinite(budget) or budget<0 or budget>MAX_BUDGET:return a2a_error(-32602,f"budget_usd must be between 0 and {MAX_BUDGET:.2f}",422)
    oid=str(uuid.uuid4())
    with LOCK,connect() as db: db.execute("INSERT INTO objectives(id,workspace_id,title,description,budget,status) VALUES(?,?,?,?,?,'proposed')",(oid,workspace_id,title,prompt,float(budget))); audit(db,"objective.proposed",oid,role,"source=a2a; awaiting human approval",workspace_id)
-   return self.reply(200,{"id":request_id,"result":{"id":oid,"status":{"state":"input-required"},"artifacts":[{"name":"approval","parts":[{"type":"text","text":"Objective is proposed and awaits human approval."}]}]}})
+   now=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00","Z")
+   context_id=str(message.get("contextId") or uuid.uuid4()); message_id=str(uuid.uuid4())
+   task={"id":oid,"contextId":context_id,"status":{"state":"TASK_STATE_INPUT_REQUIRED","timestamp":now,"message":{"messageId":message_id,"contextId":context_id,"taskId":oid,"role":"ROLE_AGENT","parts":[{"text":"Objective is proposed and awaits human approval."}]}},"metadata":{"aiOsObjectiveStatus":"proposed","approvalRequired":True}}
+   return self.reply(200,{"jsonrpc":"2.0","id":request_id,"result":{"task":task}})
   if path=="/api/v1/plugins":
    if role not in ("admin","owner"):return self.reply(403,{"error":"workspace owner permission required to submit an extension"})
    pid=str(body.get("id","" )).strip().lower(); name=str(body.get("name","" )).strip()[:100]; version=str(body.get("version","")); api_version=str(body.get("api_version","")); permissions=body.get("requested_permissions",[]); image=body.get("container_image"); description=str(body.get("description",""))[:1000]
