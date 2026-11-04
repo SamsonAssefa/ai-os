@@ -151,8 +151,10 @@ class ApiTests(unittest.TestCase):
 
     def test_a2a_agent_card_and_jsonrpc_validation(self):
         card = json.load(urllib.request.urlopen(f"http://127.0.0.1:{self.port}/.well-known/agent-card.json", timeout=3))
-        self.assertEqual(card["protocolVersion"], "1.0")
+        self.assertEqual(card["supportedInterfaces"][0]["protocolVersion"], "1.0")
         self.assertEqual(card["supportedInterfaces"][0]["protocolBinding"], "JSONRPC")
+        self.assertEqual(card["securitySchemes"]["bearerAuth"]["httpAuthSecurityScheme"]["scheme"], "Bearer")
+        self.assertEqual(card["securityRequirements"], [{"bearerAuth": []}])
         bad = urllib.request.Request(f"http://127.0.0.1:{self.port}/a2a", data=json.dumps({"id": 1, "method": "SendMessage", "params": {}}).encode(), headers={"Content-Type": "application/json"}, method="POST")
         response = urllib.request.urlopen(bad, timeout=3)
         result = json.load(response)
