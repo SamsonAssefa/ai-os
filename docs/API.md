@@ -29,3 +29,5 @@ AIOS_URL=http://localhost:8000/api/v1 AIOS_AGENT_TOKEN=... AIOS_AGENT_ID=... pyt
 ```
 
 The example worker uses OpenAI Chat Completions. Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and the model input/output USD rates from the provider pricing page. It calculates reported cost from response token usage and the rates you supply. Keys stay in the worker process environment. See `../plugins/README.md` for extension rules.
+
+Machine-readable schema: [`openapi.yaml`](../openapi.yaml). AI and crawler discovery files: [`llms.txt`](../llms.txt), served at `/llms.txt`.
