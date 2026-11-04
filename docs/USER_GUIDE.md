@@ -1,22 +1,20 @@
 # AI OS User Manual
 
-This guide helps you start AI OS, connect an agent, and run a task with human approval and a spending limit.
+AI OS is a self-hosted workspace for people and AI agents. Use it to connect tools, define goals, set limits, approve work, coordinate tasks, and inspect the results in one place.
 
 ## What AI OS does
 
-AI OS is a workspace and API for coordinating AI agents. People can register agents, set objectives, approve work, queue tasks, and review results. An agent does the work using its own model or tools, then sends the result back to AI OS.
+- Humans propose an objective and approve its scope and budget.
+- Agents discover and claim eligible tasks through the API or MCP.
+- AI OS tracks assignment, deadlines, dependencies, reservations, retries, and results.
+- Teams review actions through activity and task-event history.
+- Developers connect external agents or submit extensions for review.
 
-AI OS does not provide an AI model, execute arbitrary plugins, or deploy changes on your behalf. The included worker is an example that connects to OpenAI.
+The MVP does not include an AI model or hosted cloud service. External workers use their own model/provider credentials. The optional Docker extension runner is disabled by default and isolated from the network.
 
-## What you need
+## 1. Start locally
 
-- Python 3.9 or newer.
-- A terminal for starting the local server and agent worker.
-- Optional: an OpenAI API key and an OpenAI account with API access to use the example worker.
-
-## 1. Get and start AI OS
-
-Download the project from [GitHub](https://github.com/SamsonAssefa/ai-os), or clone it:
+Install Python 3.9 or newer, then:
 
 ```sh
 git clone https://github.com/SamsonAssefa/ai-os.git
@@ -24,105 +22,97 @@ cd ai-os
 python3 server.py
 ```
 
-Open [http://localhost:8000](http://localhost:8000). Keep this terminal open while using AI OS. The database is saved in `aios.sqlite3` beside the server file.
+Open [http://localhost:8000](http://localhost:8000). The local database is `aios.sqlite3`. With no tokens configured, the server runs in local-only development mode and binds to `127.0.0.1`. Do not expose this mode on a network.
 
-For a first local trial, credentials may be left unset. This open mode is only for local use. Do not expose it to the internet.
+## 2. Set up access
 
-## 2. Set up separate human and agent credentials
-
-For a more controlled local setup, stop the server and restart it with separate credentials:
+For the simplest secured local setup, stop the server and restart it with a long private bootstrap token:
 
 ```sh
-AIOS_ADMIN_TOKEN='choose-a-long-private-admin-token' \
-AIOS_AGENT_TOKEN='choose-a-different-long-private-agent-token' \
-python3 server.py
+AIOS_ADMIN_TOKEN='use-a-long-random-secret' python3 server.py
 ```
 
-In the workspace, open **Connect & build**, enter the admin token, and choose **Use admin key**. It is kept in that browser tab's session storage. Do not share either token or put them in public source code.
+Open **Connect & build**, enter the same value, and choose **Use admin key**. The browser stores it in session storage for that tab. Do not put it in the repository, a public webpage, or an agent prompt.
 
-The admin token is for the human workspace. The agent token is for worker programs. These credentials are shared by all administrators or agents in this MVP; there are no individual accounts or per-agent tokens yet.
+The bootstrap admin token controls the local workspace and platform operations. For a shared team instance, create named workspaces and mint a different key for each user or agent. In the API, `POST /api/v1/workspaces` returns a one-time workspace-owner key. Owners can use `POST /api/v1/api-keys` to mint `member`, `viewer`, or agent-bound keys. The raw token is shown once; save it in a password manager or secret store. Revoke a key with `DELETE /api/v1/api-keys/{id}`.
 
-## 3. Register an agent
+Dynamic agent keys should be bound to one registered agent. `AIOS_AGENT_TOKEN` remains available for simple, backward-compatible single-workspace examples, but it is shared and less restrictive. Avoid using it for teams.
 
-1. Open **Agents**.
-2. Enter a name, framework or type, capabilities, and a short description.
-3. Select **Register agent**.
-4. Copy the agent ID shown in the connected-agent list. The example worker needs this ID.
+For a network-facing host, configure a unique strong `AIOS_ADMIN_TOKEN`, `AIOS_HOST`, and exact browser origins in `AIOS_CORS_ORIGINS`. The server refuses a non-loopback bind unless an admin token is set. This is a basic safety check, not full production hosting guidance: use HTTPS, a reverse proxy, identity management, request limits, and secret rotation.
 
-Registering an agent only lists it in AI OS. It does not grant access to your computer, files, or external services.
+## 3. Connect an agent
 
-## 4. Propose and approve an objective
+1. Open **Agents** and register an agent. This creates a visible identity; it does not grant system or file access.
+2. Copy the generated agent ID.
+3. In **Connect & build**, read the API guide and OpenAPI schema.
+4. Give the worker a scoped bearer key in its environment. Prefer an agent-bound key.
+5. Implement an adapter for your framework or provider. Workers poll `GET /api/v1/tasks`, claim tasks, execute them in their own trusted runtime, and report results.
 
-1. On **Workspace**, enter the outcome you want, relevant context, and a budget.
-2. Select **Propose objective**. New objectives start as proposed.
-3. Open **Objectives & tasks** and select **Approve objective** after reviewing its scope and budget.
-
-The server rejects budgets above `AIOS_MAX_BUDGET_USD`, which defaults to $5. Change that environment variable before starting the server if a different cap is appropriate.
-
-## 5. Queue a task
-
-After approval, go to **Objectives & tasks**. Choose the approved objective, enter a specific task, and optionally assign it to one registered agent. Select **Queue task**. A task cannot be queued under an unapproved objective, and only the assigned agent can claim it.
-
-You can also select a reusable Research brief, Code review, or Content draft template when proposing an objective. The template fills in a starting title, scope, and budget. Review and adjust those values before submission.
-
-Write task descriptions as if they may be sent to an external AI service. Do not include passwords, API keys, private customer information, or other sensitive data.
-
-## 6. Connect the example OpenAI worker
-
-The example worker polls AI OS, claims queued tasks, sends the task title to OpenAI, then reports the result and calculated token cost.
-
-Get the current per-token rates for the chosen model from OpenAI's pricing page, then start a second terminal in the project folder:
+The included `examples/agent.py` demonstrates a polling worker that calls a model provider. It requires your own provider key and pricing rates:
 
 ```sh
 AIOS_URL='http://localhost:8000/api/v1' \
-AIOS_AGENT_TOKEN='the-agent-token-from-step-2' \
-AIOS_AGENT_ID='the-agent-id-from-step-3' \
-OPENAI_API_KEY='your-openai-api-key' \
+AIOS_AGENT_TOKEN='your-agent-token' \
+AIOS_AGENT_ID='your-agent-id' \
+OPENAI_API_KEY='your-provider-key' \
 OPENAI_MODEL='gpt-4.1-mini' \
-OPENAI_INPUT_USD_PER_MILLION_TOKENS='your-current-input-rate' \
-OPENAI_OUTPUT_USD_PER_MILLION_TOKENS='your-current-output-rate' \
+OPENAI_INPUT_USD_PER_MILLION_TOKENS='current-input-rate' \
+OPENAI_OUTPUT_USD_PER_MILLION_TOKENS='current-output-rate' \
 python3 examples/agent.py
 ```
 
-Replace the example values with your own. Keep the API key and tokens private. The worker will only claim tasks attached to approved objectives. It reports token-based cost using the rates you enter; make sure those rates match the selected model and current provider pricing.
+Use current model pricing from your provider. The example calculates a cost estimate from usage and the rates you supplied; AI OS cannot verify a provider invoice. Keep keys in the worker environment and avoid placing sensitive data in task descriptions.
 
-To use another model provider or an existing agent framework, write an adapter that calls AI OS's agent and task API. See [API documentation](API.md) and [plugin interface](../plugins/README.md).
+## 4. Create bounded work
 
-## 7. Review results and spending
+1. From **Workspace**, propose an objective. Include the intended result, relevant context, and a maximum budget.
+2. Open **Objectives & tasks** and approve the proposal after reviewing its scope and budget.
+3. Create specific tasks under the approved objective. Assign an agent if only one worker should be able to claim it. You may set a per-task spending reservation, attempt limit, deadline, and dependencies through the API.
+4. Workers only see queued tasks whose objective is approved, dependencies are complete, and assignment permits the worker.
 
-Return to **Objectives & tasks** and refresh the page to see task status, assignment, and result. Open **Activity** to review approval, claim, and completion events. The audit API is `GET /api/v1/audit` and is available to the admin credential. AI OS rejects a report if cumulative task spend would exceed the objective's budget.
+The default maximum objective budget is `$5.00`; configure `AIOS_MAX_BUDGET_USD` before starting the service to change the cap. A task claim reserves funds from the objective's remaining budget. When the worker reports, AI OS rejects spend above that reservation. A failed task can be retried by an owner if attempts remain. Cancelling queued work stops it immediately; cancelling running work records a cancellation request that the worker must honor.
 
-Reported cost is based on the agent's submitted usage and configured rates. It is a guardrail, not a billing statement from the model provider.
+Templates for Research brief, Code review, Content draft, and Workflow planning are available in the workspace. Templates are starting points; review the objective and all generated task details before approval.
 
-## API quick reference
+## 5. Monitor and recover
 
-| Action | Endpoint | Access |
-|---|---|---|
-| Check service | `GET /api/v1/health` | Public |
-| List capabilities | `GET /api/v1/capabilities` | Admin or agent |
-| Register/list agents | `POST/GET /api/v1/agents` | Admin or agent |
-| Propose/list objectives | `POST/GET /api/v1/objectives` | Admin |
-| Approve objective | `PATCH /api/v1/objectives/{id}/approve` | Admin |
-| Queue/list tasks | `POST/GET /api/v1/tasks` | Admin |
-| List eligible tasks | `GET /api/v1/tasks` | Agent |
-| Claim a task | `POST /api/v1/tasks/{id}/claim` | Agent |
-| Report task result | `PATCH /api/v1/tasks/{id}` | Agent who claimed it |
-| Read audit trail | `GET /api/v1/audit` | Admin |
+- **Workspace** shows counts and recent work.
+- **Objectives & tasks** shows approval state, assignment, result, and spend.
+- **Activity** shows the workspace audit history.
+- `GET /api/v1/tasks/{id}/events` shows task lifecycle events.
+- `GET /api/v1/metrics` summarizes the workspace.
+- Owners can export a workspace using `GET /api/v1/export`. Import only accepts an empty workspace, assigns fresh record IDs, resets objectives to proposed, and cancels unfinished tasks for review.
+- Full SQLite snapshots include every workspace and are therefore restricted to the bootstrap admin at `POST /api/v1/backups`. Store snapshots with restrictive filesystem access and copy them off the host securely.
 
-See [API docs](API.md) for request bodies and responses.
+## 6. Build on the hub
+
+AI OS supports multiple integration styles:
+
+- **JSON API:** use any programming language or framework; schema and examples are in [API docs](API.md) and [`openapi.yaml`](../openapi.yaml).
+- **MCP:** `POST /mcp` exposes tools for templates, eligible tasks, and proposed objectives.
+- **A2A discovery:** `/.well-known/agent-card.json` describes the service. The MVP's `/a2a` endpoint accepts a limited objective-proposal profile; it is not the full A2A lifecycle.
+- **Extensions:** the [`extension interface`](../plugins/README.md) explains review metadata and the optional offline Docker runner.
+- **AI discovery:** [`llms.txt`](../llms.txt), robots directives, app metadata, and sitemap route help tools discover docs. Search engines cannot crawl localhost. Public indexing requires you to host the app at an HTTPS URL and set `AIOS_PUBLIC_URL`.
+
+## Security and permissions
+
+| Role | Intended access |
+|---|---|
+| Platform admin | Platform-level operations, shared extension review, full database backups |
+| Workspace owner | Workspace access and keys, objective approvals, exports/imports, recovery controls |
+| Member | Register agents, propose objectives, queue tasks under approved objectives |
+| Viewer | Read workspace data and activity |
+| Agent | Read eligible tasks, claim with its identity, report the tasks it claimed |
+
+Data APIs filter by workspace credential. The bootstrap admin token is the trust root. Browser SSO, rate limits, managed secrets, and production threat monitoring are not included. Do not treat self-reported agent cost as billing truth. Review any third-party model or extension before sending it task data.
 
 ## Troubleshooting
 
-- **The page says it cannot connect:** Make sure `python3 server.py` is still running. In this desktop setup, open localhost in Chrome; the embedded in-app browser may not be able to reach local services.
-- **Unauthorized:** Confirm the admin key in **Connect & build** matches `AIOS_ADMIN_TOKEN`, then reload the workspace.
-- **Agent cannot see a task:** Confirm the objective is approved, the task is queued, and the worker has the correct agent token and ID.
-- **Worker exits immediately:** Check that all required environment variables are set, including the OpenAI key and both pricing rates.
-- **Budget rejected:** The configured rates or reported token use exceed the objective budget. Review the budget and provider usage before proposing more work.
+- **The page cannot connect:** check the server terminal and confirm `python3 server.py` is still running. The embedded browser may not reach a process running on the computer; use a local desktop browser if needed.
+- **Unauthorized:** verify the entered bearer key is active and belongs to the intended workspace.
+- **Agent cannot see a task:** check objective approval, task status, task assignment, deadline, and dependencies.
+- **Task claim says budget unavailable:** lower the reservation or review objective spend already completed or reserved.
+- **Plugin execution unavailable:** the runner is intentionally off unless `AIOS_ENABLE_SANDBOX=1`, Docker exists, and a reviewed digest-pinned extension image is already present locally.
+- **Public discovery links are wrong:** set `AIOS_PUBLIC_URL` to the actual HTTPS origin. This setting does not deploy the application.
 
-## Current limitations
-
-AI OS is an early MVP. It uses one shared admin token and one shared agent token, does not provide sign-in accounts, and does not isolate plugins. Keep it on a trusted network. Public or team hosting needs stronger identity and permission controls, rate limits, protected secret storage, backups, and security review.
-
-## Findability and AI integrations
-
-The repository includes a crawler-readable `llms.txt`, `robots.txt`, SoftwareApplication metadata, a generated sitemap route, and an OpenAPI schema. Public crawlers cannot index a localhost server. To make the web workspace discoverable, deploy it on a public HTTPS domain and set `AIOS_PUBLIC_URL` to that origin. Read [AI and search discovery](AI_DISCOVERY.md).
+For details on fields, errors, and protocol routes, see [API documentation](API.md). To contribute, see [CONTRIBUTING.md](../CONTRIBUTING.md).

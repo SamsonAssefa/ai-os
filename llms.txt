@@ -1,20 +1,25 @@
 # AI OS
 
-> An open-source workspace and API for connecting AI agents, approving bounded objectives, tracking task results, and building extensions.
+> An open-source, self-hosted hub where people and AI agents discover integrations, propose work, approve bounded objectives, coordinate tasks, review results, and extend the platform.
 
-AI OS coordinates agents supplied by its users. It does not bundle an AI model or run arbitrary plugins. Objectives require human approval before agents can claim tasks. The API enforces objective budgets and records an audit trail.
+AI OS connects external agent workers through a workspace API, MCP tools, an A2A discovery card, and reviewed extension metadata. Objectives begin as proposals and require human approval before tasks can be queued or claimed. Workspace credentials isolate data; task reservations and spend limits provide cost guardrails. AI OS does not bundle a model provider or claim to validate provider invoices.
 
 ## Start here
-- [Project overview](https://github.com/SamsonAssefa/ai-os): source, features, setup, safety scope, and license.
-- [User manual](https://github.com/SamsonAssefa/ai-os/blob/main/docs/USER_GUIDE.md): install, configure credentials, register agents, approve work, and run the reference worker.
-- [API reference](https://github.com/SamsonAssefa/ai-os/blob/main/docs/API.md): endpoints, credentials, task lifecycle, and examples.
-- [Extension interface](https://github.com/SamsonAssefa/ai-os/blob/main/plugins/README.md): adapter boundary, permissions, and contribution requirements.
-- [OpenAI worker example](https://github.com/SamsonAssefa/ai-os/blob/main/examples/agent.py): worker implementation using environment-provided credentials and configurable token rates.
-- [Product roadmap](https://github.com/SamsonAssefa/ai-os/blob/main/docs/PRODUCT_ROADMAP.md): next platform and ecosystem priorities.
-- [Contributing](https://github.com/SamsonAssefa/ai-os/blob/main/CONTRIBUTING.md): propose and contribute changes.
+- [Project overview](https://github.com/SamsonAssefa/ai-os): features, safety model, setup, and license.
+- [User manual](https://github.com/SamsonAssefa/ai-os/blob/main/docs/USER_GUIDE.md): install, configure access, connect agents, approve work, monitor tasks, and recover data.
+- [API reference](https://github.com/SamsonAssefa/ai-os/blob/main/docs/API.md): routes, roles, budgets, task lifecycle, and interoperability profiles.
+- [OpenAPI schema](https://github.com/SamsonAssefa/ai-os/blob/main/openapi.yaml): machine-readable JSON API contract.
+- [Extension interface](https://github.com/SamsonAssefa/ai-os/blob/main/plugins/README.md): extension metadata, permission labels, review, and optional offline runner.
+- [Reference worker](https://github.com/SamsonAssefa/ai-os/blob/main/examples/agent.py): example external worker using environment-provided model credentials.
+- [Roadmap](https://github.com/SamsonAssefa/ai-os/blob/main/docs/PRODUCT_ROADMAP.md): current release and next priorities.
+- [Contributing](https://github.com/SamsonAssefa/ai-os/blob/main/CONTRIBUTING.md): propose changes and implement integrations.
 
-## API summary
-The JSON API is rooted at `/api/v1`. It includes reusable workflow templates and lets admins assign tasks to specific agents. Agents can register, list eligible tasks, claim queued tasks, and report results. Admins propose and approve objectives, choose reusable workflow templates, and queue or assign tasks to a specific agent. Separate admin and agent bearer tokens are supported. See the API reference for exact schemas and authorization rules.
+## Interoperability
+- JSON API base path: `/api/v1`.
+- MCP JSON-RPC endpoint: `POST /mcp`; supports `initialize`, `tools/list`, and `tools/call` for templates, eligible tasks, and proposed objectives.
+- A2A discovery card: `GET /.well-known/agent-card.json`.
+- A2A proposal profile: `POST /a2a` with `message/send`; it creates a proposed objective, and a human must approve it.
+- Static discovery: `/llms.txt`, `/robots.txt`, `/sitemap.xml`, and `/openapi.yaml`.
 
 ## Safety and limitations
-The project is an early MVP. It uses shared role credentials, has no user accounts or per-agent tokens, and does not isolate third-party plugin code. Do not expose an open local development server to the public internet. Read the user manual before connecting an agent.
+Credentials are scoped to a workspace; dynamic agent keys bind to a registered agent and are shown only once. The optional Docker runner is disabled by default; it runs reviewed digest-pinned images offline without host mounts or credentials. Browser SSO, rate limiting, managed secrets, full A2A lifecycle, and production hosting controls are not included. Public crawling requires a real public HTTPS host; localhost and repository metadata do not publish the running web app.

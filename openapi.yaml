@@ -1,8 +1,9 @@
 openapi: 3.1.0
 info:
   title: AI OS API
-  version: 1.0.0
-  description: Human-supervised coordination API for AI agents. Objectives require admin approval before tasks can be claimed.
+  version: 0.4.0
+  summary: Human-supervised coordination hub for AI agents.
+  description: Workspace-scoped API for approval-gated objectives, budgeted tasks, agents, and extension metadata.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -11,31 +12,70 @@ paths:
   /health:
     get:
       security: []
-      summary: Check service health
+      summary: Service health
       responses:
         '200': {description: Service is running}
   /capabilities:
     get:
-      summary: List starter capabilities
+      summary: List capabilities
       responses:
         '200': {description: Capability catalog}
   /workflow-templates:
     get:
-      summary: List reusable objective templates
+      summary: List workflow templates
       responses:
-        '200': {description: Workflow template list}
-  /workflow-templates:
+        '200': {description: Templates}
+  /workspaces:
     get:
-      summary: List reusable objective templates
+      summary: List accessible workspaces
       responses:
-        '200': {description: Template list}
+        '200': {description: Workspace list}
+    post:
+      summary: Create a workspace and one-time owner credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties: {name: {type: string, maxLength: 100}}
+      responses:
+        '201': {description: Workspace and owner key (shown once)}
+  /api-keys:
+    get:
+      summary: List workspace API keys without raw secrets
+      responses:
+        '200': {description: API key metadata}
+    post:
+      summary: Create a scoped API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, role]
+              properties:
+                name: {type: string}
+                role: {type: string, enum: [admin, member, viewer, agent]}
+                agent_id: {type: string}
+      responses:
+        '201': {description: Key metadata and one-time token}
+  /api-keys/{id}:
+    delete:
+      summary: Revoke a key
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Key revoked}
   /agents:
     get:
-      summary: List registered agents
+      summary: List workspace agents
       responses:
         '200': {description: Agent list}
     post:
-      summary: Register an agent
+      summary: Register an agent identity
       requestBody:
         required: true
         content:
@@ -45,21 +85,21 @@ paths:
         '201': {description: Agent registered}
   /objectives:
     get:
-      summary: List objectives (admin)
+      summary: List workspace objectives
       responses:
         '200': {description: Objective list}
     post:
-      summary: Propose objective (admin)
+      summary: Propose an objective for human approval
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/ObjectiveInput'}
       responses:
-        '201': {description: Objective proposed and awaiting human approval}
+        '201': {description: Proposed objective}
   /objectives/{id}/approve:
     patch:
-      summary: Approve objective (admin)
+      summary: Approve a proposed objective
       parameters:
         - {name: id, in: path, required: true, schema: {type: string}}
       responses:
@@ -67,13 +107,11 @@ paths:
         '409': {description: Objective is not awaiting approval}
   /tasks:
     get:
-      summary: List tasks; agents only receive eligible tasks
-      parameters:
-        - {name: agent_id, in: query, required: false, schema: {type: string}, description: Filters to tasks assigned to this agent plus unassigned tasks}
+      summary: List tasks visible to the credential
       responses:
-        '200': {description: Task list}
+        '200': {description: Task list; agent keys receive only eligible tasks}
     post:
-      summary: Queue task under an approved objective (admin)
+      summary: Queue a task under an approved objective
       requestBody:
         required: true
         content:
@@ -81,10 +119,17 @@ paths:
             schema: {$ref: '#/components/schemas/TaskInput'}
       responses:
         '201': {description: Task queued}
-        '409': {description: Objective not approved}
-  /tasks/{id}/claim:
-    post:
-      summary: Claim a queued task (agent)
+        '409': {description: Objective or task state conflict}
+  /tasks/{id}:
+    get:
+      summary: Read task state
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Task}
+        '404': {description: Task not found}
+    patch:
+      summary: Report a task result as its claiming agent
       parameters:
         - {name: id, in: path, required: true, schema: {type: string}}
       requestBody:
@@ -93,29 +138,107 @@ paths:
           application/json:
             schema:
               type: object
-              required: [agent_id]
-              properties: {agent_id: {type: string}}
+              required: [status]
+              properties:
+                status: {type: string, enum: [completed, failed, cancelled]}
+                result: {type: string, maxLength: 4000}
+                spent_usd: {type: number, minimum: 0}
       responses:
-        '200': {description: Task claimed}
-        '409': {description: Task unavailable}
-  /tasks/{id}:
-    patch:
-      summary: Report task result and measured spend (claiming agent)
+        '200': {description: Result recorded}
+        '422': {description: Reported spend exceeds the reservation}
+  /tasks/{id}/events:
+    get:
+      summary: Read task lifecycle events
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Event history}
+  /tasks/{id}/claim:
+    post:
+      summary: Claim an eligible task
       parameters:
         - {name: id, in: path, required: true, schema: {type: string}}
       requestBody:
-        required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/TaskReport'}
+            schema:
+              type: object
+              properties: {agent_id: {type: string}}
       responses:
-        '200': {description: Result recorded}
-        '422': {description: Report would exceed objective budget}
+        '200': {description: Task claimed with a spending reservation}
+        '409': {description: Task unavailable or budget reservation failed}
+  /tasks/{id}/cancel:
+    patch:
+      summary: Cancel queued work or request cancellation of running work
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Cancellation recorded}
+  /tasks/{id}/retry:
+    patch:
+      summary: Requeue a failed task when attempts remain
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Task requeued}
   /audit:
     get:
-      summary: Read audit events (admin)
+      summary: Read workspace audit log
       responses:
         '200': {description: Audit events}
+  /metrics:
+    get:
+      summary: Workspace task and budget metrics
+      responses:
+        '200': {description: Metrics}
+  /export:
+    get:
+      summary: Export workspace records
+      responses:
+        '200': {description: Portable workspace JSON}
+  /import:
+    post:
+      summary: Import into an empty workspace; proposals require review
+      responses:
+        '201': {description: Safe import result}
+  /backups:
+    get:
+      summary: List full database backups (bootstrap admin only)
+      responses:
+        '200': {description: Backup metadata}
+    post:
+      summary: Create full database snapshot (bootstrap admin only)
+      responses:
+        '201': {description: Snapshot created}
+  /plugins:
+    get:
+      summary: Browse approved extension metadata
+      responses:
+        '200': {description: Catalog entries}
+    post:
+      summary: Submit extension metadata for review
+      responses:
+        '201': {description: Pending review}
+  /plugins/{id}:
+    patch:
+      summary: Review extension metadata (platform admin only)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Review recorded}
+  /runner/status:
+    get:
+      summary: Check optional offline runner availability
+      responses:
+        '200': {description: Runner state and restrictions}
+  /tasks/{id}/execute:
+    post:
+      summary: Execute an approved runnable plugin in the opt-in offline Docker sandbox
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Plugin result}
+        '503': {description: Runner disabled or unavailable}
 components:
   securitySchemes:
     BearerAuth:
@@ -127,12 +250,12 @@ components:
       required: [name]
       properties:
         name: {type: string, maxLength: 100}
-        kind: {type: string}
+        kind: {type: string, maxLength: 40}
         description: {type: string, maxLength: 500}
         capabilities: {type: array, items: {type: string}}
     ObjectiveInput:
       type: object
-      required: [title, budget_usd]
+      required: [title]
       properties:
         title: {type: string, maxLength: 240}
         description: {type: string, maxLength: 4000}
@@ -143,12 +266,9 @@ components:
       properties:
         objective_id: {type: string}
         title: {type: string}
+        description: {type: string, maxLength: 4000}
         assigned_agent_id: {type: [string, 'null']}
-    TaskReport:
-      type: object
-      required: [agent_id, status, spent_usd]
-      properties:
-        agent_id: {type: string}
-        status: {type: string, enum: [completed, failed]}
-        result: {type: string, maxLength: 4000}
-        spent_usd: {type: number, minimum: 0}
+        reserve_usd: {type: number, minimum: 0}
+        max_attempts: {type: integer, minimum: 1, maximum: 10}
+        deadline_at: {type: [string, 'null'], format: date-time}
+        depends_on: {type: array, items: {type: string}}

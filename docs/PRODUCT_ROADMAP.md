@@ -1,31 +1,31 @@
 # Product roadmap
 
-AI OS aims to become the easiest open workspace for people to coordinate AI agents across providers. Adoption should come from being useful, safe, interoperable, and easy to build on.
+AI OS is an open, self-hosted workspace for coordinating AI agents with people in control of scope and consequential actions. The goal is to make connections, permissions, and work portable across providers and frameworks.
 
-## In this release
+## Available in v0.4.0
 
-- Browser workspace and JSON API.
-- Separate admin and agent credentials.
-- Human-approved objectives with budgets.
-- Persistent local state and audit trail.
-- Reusable workflow templates and task assignment.
-- OpenAPI schema, reference worker, and plugin boundary.
+- Browser workspace with a black-and-white default, appearance customization, objective/task views, activity, team workspaces, scoped access keys, and extension metadata catalog.
+- JSON API, OpenAPI reference, MCP tool profile, A2A agent discovery card, and a limited A2A objective-proposal profile.
+- Human-approved objectives; task dependencies, deadlines, reservations, spend checks, retries, cancellation requests, event history, and per-agent assignment.
+- Workspace export/import and bootstrap-admin full database snapshots.
+- Optional local Docker runner for reviewed, digest-pinned extensions. It is disabled by default, offline, read-only, unprivileged, and resource limited.
+- Worker example, user manual, AI discovery resources, tests, MIT license, and GitHub Actions CI.
 
 ## Next priorities
 
-1. **Team workspaces:** individual identities, organizations, roles, and scoped agent credentials.
-2. **Reliable orchestration:** retries, deadlines, cancellation, task dependencies, and budget reservations before work starts.
-3. **Connector ecosystem:** documented adapters for popular agent frameworks and business tools, with permission declarations and conformance checks.
-4. **Trust and operations:** signed audit records, secret vault integration, rate limits, backups, monitoring, and isolated execution.
-5. **Portable workflows:** versioned workflow packages that can be exported, reviewed, and run on self-hosted or managed infrastructure.
-6. **Discovery:** public, useful documentation and a transparent extension directory with compatibility and security details.
+1. **Team identity:** SSO/OIDC, durable user sessions, invitations, and delegated organization roles.
+2. **Reliable orchestration:** durable job queues, worker heartbeats, leases, idempotency, and recovery after server restarts.
+3. **Connector ecosystem:** maintained adapters and conformance tests for common agent frameworks, models, and business tools.
+4. **Trust and operations:** rate limits, encrypted secret storage, signed audit events, dependency and image scanning, backup retention, and operational monitoring.
+5. **Portable workflows:** versioned workflow packages with reproducible inputs, permission manifests, compatibility checks, and migration support.
+6. **Production readiness:** threat model, independent security review, performance testing, deployment guidance, and supported upgrade paths.
 
 ## Product principles
 
-- Work with agents from different providers and frameworks.
-- Let users export their data and workflows.
-- Make permissions and cost visible before work starts.
-- Keep consequential actions behind a clear human approval step.
-- Let extensions compete on quality and fit instead of locking data into one vendor.
+- Let agents built by different providers and frameworks interoperate.
+- Let users export their data and move between self-hosted and managed options.
+- Show permissions, budgets, and pending approvals before work begins.
+- Keep consequential actions behind clear human review.
+- Let integrations compete on quality and fit instead of locking data into one vendor.
 
-This roadmap is directional. Features should ship only when they improve a real user workflow and can be supported safely.
+This roadmap is directional. Features should ship only when they solve a real workflow and can be supported safely.

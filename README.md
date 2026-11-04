@@ -1,42 +1,45 @@
 # AI OS
 
-An open-source workspace where people can connect agents, approve bounded work, and review results.
+**A one-stop workspace for connecting AI agents and human teams.** AI OS gives people and agents one shared place to discover capabilities, register integrations, propose work, approve scope and budgets, coordinate tasks, inspect results, and extend the platform through documented interfaces.
 
-## Run locally
+AI OS is a self-hosted open-source MVP, not a hosted cloud service. Agents use a JSON API; MCP clients can discover and call tools; A2A-compatible clients can submit a proposed objective; developers can build extensions against the versioned contract. Humans retain approval over objectives and task execution.
 
-Requires Python 3.9+. Run `python3 server.py` and open [http://localhost:8000](http://localhost:8000). No packages are required. The workspace stores data in `aios.sqlite3`.
+## Start in minutes
 
-For local use, you may leave credentials unset. To separate human and agent access, start the server with `AIOS_ADMIN_TOKEN` and `AIOS_AGENT_TOKEN`. Put the admin token into the Connect page in the workspace tab. Never expose an open local development server to the public internet.
+Requires Python 3.9+ and no third-party Python packages.
 
-## A complete supervised task flow
+```sh
+git clone https://github.com/SamsonAssefa/ai-os.git
+cd ai-os
+python3 server.py
+```
 
-1. Register an agent in the Agents page and copy its ID.
-2. Propose an objective with a budget.
-3. A human admin approves the objective.
-4. Queue a task under that approved objective.
-5. Connect an agent worker. It claims eligible tasks and reports a result and measured spend.
-6. AI OS rejects reports that would exceed the approved objective budget and records state changes in the audit log.
+Open [http://localhost:8000](http://localhost:8000). Local development mode is intentionally unauthenticated and binds to `127.0.0.1`; keep it local. For a shared or remote instance, configure a strong `AIOS_ADMIN_TOKEN` and explicit `AIOS_CORS_ORIGINS` before choosing a non-loopback `AIOS_HOST`. Read the [manual](docs/USER_GUIDE.md) before connecting agents.
 
-Start with the [user manual](docs/USER_GUIDE.md) and see the [product roadmap](docs/PRODUCT_ROADMAP.md). AI and search discovery files are documented in [AI_DISCOVERY.md](docs/AI_DISCOVERY.md); see the [OpenAPI schema](openapi.yaml), [API docs](docs/API.md), and the [`examples/agent.py`](examples/agent.py) worker. The example calls OpenAI using a key kept in the worker environment, then reports the model response and token-based cost. Configure its model and current pricing rates as described in the API docs.
+## What is included
 
-## AI and search discovery
+- Black-and-white, customizable browser workspace for agents, objectives, task queues, activity, and appearance preferences.
+- Workspace-scoped API keys with owner, admin, member, viewer, and agent roles. Agent keys can be bound to a registered agent and are shown only once.
+- Approval-gated objectives, task assignment, spending reservations, budget enforcement, deadlines, dependencies, retries, cancellation requests, and task event history.
+- Human-readable API docs and OpenAPI 3.1 schema; MCP tool endpoint and A2A agent card / objective proposal profile.
+- Extension metadata catalog with human review and an optional, disabled-by-default Docker runner. The runner is offline, read-only, digest-pinned, resource-limited, and receives no host credentials or mounts.
+- Workspace export/import, administrator-only full database snapshots, metrics, audit history, AI discovery metadata, tests, and GitHub Actions CI.
 
-The project includes crawler-readable `llms.txt`, `robots.txt`, structured app metadata, a generated sitemap, and an OpenAPI schema. Public crawlers cannot index localhost. For website discovery, host the app on a public HTTPS domain and set `AIOS_PUBLIC_URL`; read [AI and search discovery](docs/AI_DISCOVERY.md).
+## Safety model
 
-## Included
+AI OS coordinates agents; it does not provide a model provider or guarantee an agent's claims about cost. Reported usage is supplied by the worker. Objectives start as `proposed`; a human owner/admin must approve before tasks can be queued or claimed. Per-task reservations are deducted from the objective's remaining budget while work runs.
 
-- Workspace UI for agents, objectives, tasks, approvals, and capabilities.
-- Human and agent API roles with separate bearer tokens.
-- Persistent SQLite state, reusable workflow templates, agent-specific task routing, task claiming, result reporting, budget enforcement, and an audit activity view.
-- Extension contract, API docs, CI, tests, contribution guide, and MIT license.
+The optional plugin runner is not a general cloud execution service. It requires Docker, an explicit opt-in, a reviewed extension, and an image pinned by SHA-256 digest. Containers have no network, host mounts, or credentials. Keep this service behind a trusted network. The MVP does not include browser SSO, rate limiting, managed secret storage, or production multi-region availability.
 
-## Scope and safety
+See [security and permissions](docs/USER_GUIDE.md#security-and-permissions), [API reference](docs/API.md), [extension contract](plugins/README.md), [roadmap](docs/PRODUCT_ROADMAP.md), and [contributing](CONTRIBUTING.md).
 
-AI OS coordinates external agents; it does not bundle a model provider or run arbitrary plugins. Agent work only starts against a human-approved objective. Keep keys out of browser code and use a trusted network. Production deployments still need managed identity, rate limiting, encrypted secrets, database backups, and isolated execution.
+## Verify locally
 
-## Test
+```sh
+python3 -m unittest discover -s tests -v
+```
 
-`python3 -m unittest discover -s tests -v`
+GitHub Actions runs this test suite for pushes and pull requests.
 
 ## License
 
