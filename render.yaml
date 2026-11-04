@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ai-os-samson-assefa
+    runtime: python
+    plan: 0.5c-512mb
+    region: virginia
+    branch: main
+    buildCommand: python3 -m py_compile server.py sandbox_runner.py
+    startCommand: python3 server.py
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: AIOS_HOST
+        value: 0.0.0.0
+      - key: AIOS_DB_PATH
+        value: /var/data/aios.sqlite3
+      - key: AIOS_ADMIN_TOKEN
+        generateValue: true
+      - key: AIOS_PUBLIC_URL
+        sync: false
+    disk:
+      name: ai-os-data
+      mountPath: /var/data
+      sizeGB: 1
